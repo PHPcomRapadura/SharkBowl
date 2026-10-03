@@ -3,7 +3,7 @@ name: Build and deploy
 on:
   pull_request:
   push:
-    branches: [main, ci/github-actions-tevun]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
