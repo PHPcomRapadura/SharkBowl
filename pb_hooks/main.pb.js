@@ -2,7 +2,7 @@ onRecordAuthWithOAuth2Request((e) => {
   const shark = require(`${__hooks}/shark-bowl.js`)
   if (e.providerName !== 'github') throw new ForbiddenError('Entre com sua conta do GitHub.')
   if (e.isNewRecord) {
-    e.createData.name = shark.normalizedText(e.oAuth2User?.name || e.oAuth2User?.username || e.oAuth2User?.email, 40) || 'Participante'
+    e.createData = { ...e.createData, name: shark.normalizedText(e.oAuth2User?.name || e.oAuth2User?.username || e.oAuth2User?.email, 40) || 'Participante' }
   }
   return e.next()
 }, 'users')
