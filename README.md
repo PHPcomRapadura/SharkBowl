@@ -44,10 +44,10 @@ Não coloque o Client Secret do GitHub no repositório, no frontend ou no `.env`
 
 ## Implantar na VPS
 
-Em produção, `.environment/bowl.devi.tools/docker-compose.override.yml` conecta o PocketBase à rede `reverse-proxy`, sem publicar portas no host. O Tevun serve a aplicação em `https://bowl.devi.tools` e mantém os dados no volume `sharkbowl_pocketbase_data`.
+Em produção, `.tevun/environment/bowl.devi.tools/docker-compose.override.yml` conecta o PocketBase à rede `reverse-proxy`, sem publicar portas no host. O Tevun serve a aplicação em `https://bowl.devi.tools` e mantém os dados no volume `sharkbowl_pocketbase_data`.
 
 ```bash
-cp .environment/bowl.devi.tools/docker-compose.override.yml docker-compose.override.yml
+cp .tevun/environment/bowl.devi.tools/docker-compose.override.yml docker-compose.override.yml
 COMPOSE_PROJECT_NAME=sharkbowl bash .tevun/hooks/install.sh "$PWD"
 docker compose -p sharkbowl -f compose.yaml -f docker-compose.override.yml ps
 ```
@@ -89,4 +89,4 @@ O hook de publicação executa as migrações pendentes em `pocketbase/migration
 
 `pocketbase/hooks` e `pocketbase/migrations` reúnem o backend. `pocketbase/bootstrap.sh` prepara o binário oficial PocketBase 0.40.4 no volume `pocketbase_binary`, valida seu SHA-256 e fornece os certificados para OAuth HTTPS. O serviço usa `alpine:3.21`, sem Dockerfile próprio. O volume `pocketbase_data` permanece separado e persistente.
 
-Em desenvolvimento, execute `npm run dev` para o frontend conectado ao PocketBase em container. Na produção, a pipeline compila `dist/client` e copia o override de `.environment/bowl.devi.tools` para `docker-compose.override.yml` no snapshot. Frontend compilado, hooks e migrações são montados somente para leitura; não há build de imagem da aplicação.
+Em desenvolvimento, execute `npm run dev` para o frontend conectado ao PocketBase em container. Na produção, a pipeline compila `dist/client` e copia o override de `.tevun/environment/bowl.devi.tools` para `docker-compose.override.yml` no snapshot. Frontend compilado, hooks e migrações são montados somente para leitura; não há build de imagem da aplicação.
