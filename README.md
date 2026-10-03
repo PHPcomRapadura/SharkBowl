@@ -15,7 +15,8 @@ O PocketBase reúne banco SQLite, autenticação, API e Realtime na própria VPS
 
 ```bash
 cp .env.example .env
-docker compose up --build -d
+docker compose run --rm pocketbase migrate up --dir=/pb/pb_data --hooksDir=/pb/hooks --migrationsDir=/pb/migrations
+docker compose up -d
 npm install
 npm run dev
 ```
@@ -29,7 +30,7 @@ O GitHub só aceita um callback por OAuth App. Para desenvolvimento, use uma OAu
 1. Suba o container e crie o primeiro superusuário:
 
    ```bash
-   docker compose exec -it pocketbase /pb/pocketbase superuser create admin@exemplo.com 'uma-senha-forte'
+   docker compose exec -it pocketbase /bin/sh /pb/bootstrap.sh superuser create admin@exemplo.com 'uma-senha-forte'
    ```
 
 2. Abra `https://seu-dominio/_/` pelo proxy existente e entre no painel.
@@ -82,4 +83,10 @@ npm run build
 docker compose config
 ```
 
-O hook de publicação executa as migrações pendentes em `pb_migrations/` antes de iniciar o serviço; a imagem desabilita a migração automática ao iniciar. O JSON histórico em `data/rooms.json` não é lido pela nova versão; ele continua preservado localmente como backup.
+O hook de publicação executa as migrações pendentes em `pocketbase/migrations/` antes de iniciar o serviço; o comando do serviço desabilita a migração automática ao iniciar. O JSON histórico em `data/rooms.json` não é lido pela nova versão; ele continua preservado localmente como backup.
+
+## Organização e runtime
+
+`pocketbase/hooks` e `pocketbase/migrations` reúnem o backend. `pocketbase/bootstrap.sh` prepara o binário oficial PocketBase 0.40.4 no volume `pocketbase_binary`, valida seu SHA-256 e fornece os certificados para OAuth HTTPS. O serviço usa `alpine:3.21`, sem Dockerfile próprio. O volume `pocketbase_data` permanece separado e persistente.
+
+Em desenvolvimento, execute `npm run dev` para o frontend conectado ao PocketBase em container. Na produção, a pipeline compila `dist/client` e copia o override de `.environment/bowl.devi.tools` para `docker-compose.override.yml` no snapshot. Frontend compilado, hooks e migrações são montados somente para leitura; não há build de imagem da aplicação.

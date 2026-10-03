@@ -85,7 +85,7 @@ jobs:
           id=$(docker compose -f compose.yaml -f docker-compose.override.yml ps -q pocketbase)
           test -n "$id"
           test "$(docker inspect "$id" --format '{{.State.Health.Status}}')" = healthy
-          test "$(docker exec "$id" sha256sum /pb/pb_public/index.html | cut -d ' ' -f 1)" = "$3"
+          test "$(docker exec "$id" sha256sum /pb/public/index.html | cut -d ' ' -f 1)" = "$3"
           image=$(docker compose -f compose.yaml -f docker-compose.override.yml images -q pocketbase)
           test "$(docker inspect "$id" --format '{{.Image}}')" = "$(docker image inspect "$image" --format '{{.Id}}')"
           REMOTE

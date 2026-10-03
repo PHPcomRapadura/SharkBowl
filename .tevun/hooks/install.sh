@@ -4,6 +4,6 @@ cd "${1}"
 export COMPOSE_PROJECT_NAME=sharkbowl
 compose=(docker compose -f compose.yaml -f docker-compose.override.yml)
 "${compose[@]}" config --quiet
-"${compose[@]}" build
-"${compose[@]}" run --rm pocketbase /pb/pocketbase migrate up --dir=/pb/pb_data --hooksDir=/pb/pb_hooks --migrationsDir=/pb/pb_migrations
+"${compose[@]}" pull
+"${compose[@]}" run --rm pocketbase migrate up --dir=/pb/pb_data --hooksDir=/pb/hooks --migrationsDir=/pb/migrations
 "${compose[@]}" up -d --wait

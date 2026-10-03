@@ -1,7 +1,7 @@
 # Deploy com GitHub Actions
 
 O workflow compila o frontend com as dependências do lockfile e envia um snapshot
-para o remote Tevun. O servidor monta a imagem PocketBase com `Dockerfile.deploy`,
+para o remote Tevun. O servidor usa `alpine:3.21` com o binário oficial PocketBase 0.40.4,
 executa as migrations e espera o container ficar saudável. A pipeline verifica
 a revisão recebida, a imagem do container e os endpoints HTTP e HTTPS.
 
