@@ -37,6 +37,8 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           name: frontend
@@ -69,10 +71,11 @@ jobs:
           DEPLOY_REMOTE: ${{ vars.DEPLOY_REMOTE }}
         run: |
           expected=$(git rev-parse HEAD)
+          frontend=$(sha256sum dist/client/index.html | cut -d ' ' -f 1)
           remote=${DEPLOY_REMOTE#ssh://}
           host=${remote%%/*}
           path=/${remote#*/}
-          ssh "$host" bash -s -- "$path" "$expected" <<'REMOTE'
+          ssh "$host" bash -s -- "$path" "$expected" "$frontend" <<'REMOTE'
           set -euo pipefail
           test "$(git --git-dir="$1" rev-parse main)" = "$2"
           app="${1%/repo}/app"
@@ -82,6 +85,7 @@ jobs:
           id=$(docker compose --env-file .env --env-file .deploy.env -f compose.yaml -f compose.production.yaml ps -q pocketbase)
           test -n "$id"
           test "$(docker inspect "$id" --format '{{.State.Health.Status}}')" = healthy
+          test "$(docker exec "$id" sha256sum /pb/pb_public/index.html | cut -d ' ' -f 1)" = "$3"
           image=$(docker compose --env-file .env --env-file .deploy.env -f compose.yaml -f compose.production.yaml images -q pocketbase)
           test "$(docker inspect "$id" --format '{{.Image}}')" = "$(docker image inspect "$image" --format '{{.Id}}')"
           REMOTE
