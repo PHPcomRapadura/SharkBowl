@@ -43,11 +43,12 @@ Não coloque o Client Secret do GitHub no repositório, no frontend ou no `.env`
 
 ## Implantar na VPS
 
-Em produção, `compose.production.yaml` conecta o PocketBase à rede `reverse-proxy`, sem publicar portas no host. O Tevun serve a aplicação em `https://bowl.devi.tools` e mantém os dados no volume `sharkbowl_pocketbase_data`.
+Em produção, `.environment/bowl.devi.tools/docker-compose.override.yml` conecta o PocketBase à rede `reverse-proxy`, sem publicar portas no host. O Tevun serve a aplicação em `https://bowl.devi.tools` e mantém os dados no volume `sharkbowl_pocketbase_data`.
 
 ```bash
+cp .environment/bowl.devi.tools/docker-compose.override.yml docker-compose.override.yml
 COMPOSE_PROJECT_NAME=sharkbowl bash .tevun/hooks/install.sh "$PWD"
-docker compose -p sharkbowl -f compose.yaml -f compose.production.yaml ps
+docker compose -p sharkbowl -f compose.yaml -f docker-compose.override.yml ps
 ```
 
 Na produção, não defina `VITE_POCKETBASE_URL`: frontend, API e Realtime usam a mesma origem pública. Se o build for feito fora do domínio final, defina `VITE_PUBLIC_APP_URL=https://seu-dominio` antes de construir para que o QR Code use a URL correta.

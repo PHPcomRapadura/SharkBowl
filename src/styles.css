@@ -448,3 +448,7 @@ blockquote { margin: 25px 0 16px; max-width: 660px; font-size: clamp(24px, 4vw, 
 .account-options { position: absolute; top: calc(100% + 8px); right: 0; z-index: 20; min-width: 160px; padding: 6px; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px #0003; }
 .account-options button { width: 100%; padding: 12px; color: var(--text); background: transparent; border: 0; border-radius: 8px; text-align: left; font: inherit; cursor: pointer; }
 .account-options button:hover, .account-options button:focus-visible { background: var(--accent-ring); outline: 2px solid var(--teal); }
+
+.welcome-row > div { min-width: 0; }
+.welcome-row .room-title { margin-top: 0; overflow-wrap: anywhere; }
+.welcome-row .participant-greeting { margin-top: 16px; color: var(--text); font-size: clamp(16px, 2.4vw, 20px); line-height: 1.4; }

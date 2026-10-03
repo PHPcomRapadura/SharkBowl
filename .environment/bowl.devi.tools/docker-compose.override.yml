@@ -2,7 +2,7 @@ name: sharkbowl
 services:
   pocketbase:
     build:
-      dockerfile: ${DEPLOY_DOCKERFILE:-Dockerfile}
+      dockerfile: Dockerfile.deploy
     ports: !reset []
     environment:
       VIRTUAL_HOST: bowl.devi.tools
