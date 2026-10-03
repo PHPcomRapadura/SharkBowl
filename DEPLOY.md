@@ -3,7 +3,7 @@
 O workflow compila o frontend com as dependências do lockfile e envia um snapshot
 para o remote Tevun. O servidor usa `alpine:3.21` com o binário oficial PocketBase 0.40.4,
 executa as migrations e espera o container ficar saudável. A pipeline verifica
-a revisão recebida, a imagem do container e os endpoints HTTP e HTTPS.
+somente o build e o envio Git. Migrações e saúde são verificadas pelo hook Tevun no servidor. O sucesso do push não comprova que o hook concluiu; confira a aplicação após publicar.
 
 O projeto Compose continua sendo `sharkbowl`, com o volume
 `sharkbowl_pocketbase_data`. O `.env` do servidor e a configuração OAuth no banco

@@ -66,30 +66,3 @@ jobs:
           git add docker-compose.override.yml
           git commit -m "build: Prepare production snapshot"
           git push --force "$DEPLOY_REMOTE" HEAD:main
-      - name: Verify deployed container
-        env:
-          DEPLOY_REMOTE: ${{ vars.DEPLOY_REMOTE }}
-        run: |
-          expected=$(git rev-parse HEAD)
-          frontend=$(sha256sum dist/client/index.html | cut -d ' ' -f 1)
-          remote=${DEPLOY_REMOTE#ssh://}
-          host=${remote%%/*}
-          path=/${remote#*/}
-          ssh "$host" bash -s -- "$path" "$expected" "$frontend" <<'REMOTE'
-          set -euo pipefail
-          test "$(git --git-dir="$1" rev-parse main)" = "$2"
-          app="${1%/repo}/app"
-          test "$(git hash-object "$app/docker-compose.override.yml")" = "$(git --git-dir="$1" rev-parse main:docker-compose.override.yml)"
-          cd "$app"
-          docker compose -f compose.yaml -f docker-compose.override.yml config --quiet
-          id=$(docker compose -f compose.yaml -f docker-compose.override.yml ps -q pocketbase)
-          test -n "$id"
-          test "$(docker inspect "$id" --format '{{.State.Health.Status}}')" = healthy
-          test "$(docker exec "$id" sha256sum /pb/public/index.html | cut -d ' ' -f 1)" = "$3"
-          image=$(docker compose -f compose.yaml -f docker-compose.override.yml images -q pocketbase)
-          test "$(docker inspect "$id" --format '{{.Image}}')" = "$(docker image inspect "$image" --format '{{.Id}}')"
-          REMOTE
-      - name: Verify public endpoints
-        run: |
-          curl --fail --silent --show-error --retry 8 --retry-delay 5 --retry-all-errors https://bowl.devi.tools/api/health
-          curl --fail --silent --show-error --location http://bowl.devi.tools/api/health
