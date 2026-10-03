@@ -62,9 +62,8 @@ O volume `pocketbase_data` contém usuários, salas e configurações OAuth. Fa�
 
 - GitHub é obrigatório para participar, criar salas e entrar na fila.
 - Qualquer pessoa autenticada pode criar uma sala e se torna seu dono.
-- O dono pode promover participantes que já entraram na sala a facilitadores e revogar esse acesso.
-- Somente dono e facilitadores podem abrir perguntas, controlar a fila e definir o tempo.
-- Apenas o dono pode reiniciar uma sessão; a sala e seus facilitadores permanecem.
+- Somente o dono da sala podem abrir perguntas, controlar a fila e definir o tempo.
+- Apenas o dono pode reiniciar uma sessão; a sala e seus participantes permanecem.
 - Perguntas anônimas nunca retornam a identidade do autor para o navegador.
 - As coleções de perguntas, fila e membros não aceitam escrita direta pelo cliente. As ações passam por rotas transacionais no PocketBase.
 

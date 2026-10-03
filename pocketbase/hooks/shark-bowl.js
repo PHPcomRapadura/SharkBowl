@@ -28,22 +28,14 @@ function getMembership(app, roomId, userId) {
   }
 }
 
-function isFacilitator(app, room, userId) {
-  return room.getString('owner') === userId || getMembership(app, room.id, userId)?.getString('role') === 'facilitator'
-}
-
 function requireParticipant(app, room, userId) {
   const membership = getMembership(app, room.id, userId)
   if (!membership) throw new ForbiddenError('Entre na sala antes de continuar.')
   return membership
 }
 
-function requireFacilitator(app, room, userId) {
-  if (!isFacilitator(app, room, userId)) throw new ForbiddenError('Apenas facilitadores podem controlar esta sala.')
-}
-
 function requireOwner(room, userId) {
-  if (room.getString('owner') !== userId) throw new ForbiddenError('Apenas o dono da sala pode alterar facilitadores.')
+  if (room.getString('owner') !== userId) throw new ForbiddenError('Apenas o dono da sala pode controlar esta sala.')
 }
 
 function roomQuestions(app, roomId) {
@@ -122,14 +114,10 @@ function roomState(app, room, currentUserId) {
   const activeQuestionId = room.getString('active_question_id') || null
   const activeEntryId = room.getString('active_entry_id') || null
   const ownerId = room.getString('owner')
-  const membership = getMembership(app, room.id, currentUserId)
   const participants = memberships.map((entry) => {
     const identity = userById(app, entry.getString('user'), userCache)
     return { ...identity, lastSeenAt: timestamp(entry.getString('updated')) }
   })
-  const facilitators = memberships
-    .filter((entry) => entry.getString('role') === 'facilitator' && entry.getString('user') !== ownerId)
-    .map((entry) => userById(app, entry.getString('user'), userCache))
   return {
     room: {
       id: room.id,
@@ -178,10 +166,8 @@ function roomState(app, room, currentUserId) {
       }
     }),
     participants,
-    facilitators,
     permissions: {
-      canFacilitate: ownerId === currentUserId || membership?.getString('role') === 'facilitator',
-      canManageFacilitators: ownerId === currentUserId,
+      canFacilitate: ownerId === currentUserId,
     },
   }
 }
@@ -212,7 +198,7 @@ function joinRoom(app, room, userId) {
   if (membership) {
     app.save(membership)
   } else {
-    createRecord(app, 'memberships', { room: room.id, user: userId, role: room.getString('owner') === userId ? 'facilitator' : 'participant' })
+    createRecord(app, 'memberships', { room: room.id, user: userId, role: 'participant' })
   }
   touchRoom(app, room)
 }
@@ -265,19 +251,7 @@ function applyAction(app, room, userId, body) {
     touchRoom(app, room)
     return
   }
-  if (type === 'set-facilitator') {
-    requireOwner(room, userId)
-    const targetId = normalizedText(body.userId, 15)
-    if (!targetId || targetId === room.getString('owner')) throw new BadRequestError('O dono da sala já é facilitador.')
-    const targetMembership = getMembership(app, room.id, targetId)
-    if (!targetMembership) throw new BadRequestError('A pessoa precisa entrar na sala antes de virar facilitadora.')
-    targetMembership.set('role', body.enabled === true ? 'facilitator' : 'participant')
-    app.save(targetMembership)
-    touchRoom(app, room)
-    return
-  }
-
-  requireFacilitator(app, room, userId)
+  requireOwner(room, userId)
   if (type === 'select-question') {
     if (activeEntryId) throw new BadRequestError('Finalize a fala atual antes de trocar de pergunta.')
     const question = findQuestion(app, room.id, normalizedText(body.questionId, 15))

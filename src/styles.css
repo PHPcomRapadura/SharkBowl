@@ -452,3 +452,7 @@ blockquote { margin: 25px 0 16px; max-width: 660px; font-size: clamp(24px, 4vw, 
 .room-title { overflow-wrap: anywhere; }
 .welcome-row .room-title { margin-top: 0; }
 .welcome-row .room-subtitle, .facilitator-heading .room-subtitle { margin-top: 16px; color: var(--text); font-size: clamp(16px, 2.4vw, 20px); line-height: 1.4; }
+
+.repository-footer { padding: 16px 20px 28px; text-align: center; font-size: 12px; color: var(--muted); }
+.repository-footer a:hover { color: var(--text); }
+.repository-footer a:focus-visible { outline: 2px solid var(--teal); outline-offset: 4px; }

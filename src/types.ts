@@ -65,7 +65,6 @@ export type Session = {
 
 export type RoomPermissions = {
   canFacilitate: boolean
-  canManageFacilitators: boolean
 }
 
 export type AppState = {
@@ -74,7 +73,6 @@ export type AppState = {
   questions: Question[]
   queue: QueueEntry[]
   participants: Participant[]
-  facilitators: Identity[]
   permissions: RoomPermissions
 }
 
@@ -88,4 +86,3 @@ export type Action =
   | { type: 'set-duration'; durationSeconds: 120 | 180 }
   | { type: 'close-question' }
   | { type: 'reset-session' }
-  | { type: 'set-facilitator'; userId: string; enabled: boolean }

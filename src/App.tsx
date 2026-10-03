@@ -382,33 +382,6 @@ function QueueRow({ entry, index, active }: { entry: QueueEntry; index: number; 
   return <div className={`queue-row ${active ? 'is-speaking' : ''}`}><span className="queue-index">{String(index + 1).padStart(2, '0')}</span><span className="avatar avatar-small">{getInitials(entry.participantName)}</span><div className="queue-person"><strong>{entry.participantName}</strong>{entry.replyToName && <span>↳ réplica para {entry.replyToName}</span>}</div>{active ? <span className="speaking-pill">falando</span> : <span className={`entry-state state-${entry.status}`}>{entry.status === 'finished' ? 'falou' : 'aguardando'}</span>}</div>
 }
 
-function FacilitatorAccess({ state, onAction }: { state: AppState; onAction: (action: Action) => Promise<void> }) {
-  const [busyUserId, setBusyUserId] = useState('')
-  const facilitatorIds = new Set(state.facilitators.map((facilitator) => facilitator.id))
-
-  const setFacilitator = async (userId: string, enabled: boolean) => {
-    setBusyUserId(userId)
-    try {
-      await onAction({ type: 'set-facilitator', userId, enabled })
-    } finally {
-      setBusyUserId('')
-    }
-  }
-
-  return (
-    <section className="facilitator-access panel">
-      <div className="facilitator-access-heading"><div><span className="kicker">quem conduz</span><h2>Facilitadores</h2><p>Quem já entrou na sala pode ajudar a conduzir a conversa.</p></div><span>{state.facilitators.length} convidados</span></div>
-      <div className="facilitator-access-list">
-        {state.participants.map((participant) => {
-          const isOwner = participant.id === state.room.ownerId
-          const isFacilitator = isOwner || facilitatorIds.has(participant.id)
-          return <div className="facilitator-access-row" key={participant.id}><span className="avatar avatar-small">{getInitials(participant.name)}</span><strong>{participant.name}</strong>{isOwner ? <span className="access-role">dono</span> : <button className="button button-quiet" type="button" disabled={busyUserId === participant.id} onClick={() => void setFacilitator(participant.id, !isFacilitator)}>{busyUserId === participant.id ? 'Salvando…' : isFacilitator ? 'Remover acesso' : 'Tornar facilitador'}</button>}</div>
-        })}
-      </div>
-    </section>
-  )
-}
-
 function FacilitatorView({ state, online, identity, publicOrigin, onLogout, onAction, onMessage }: { state: AppState; online: boolean; identity: Identity; publicOrigin: string | null | undefined; onLogout: () => void; onAction: (action: Action) => Promise<void>; onMessage: (message: string) => void }) {
   const activeQuestion = state.questions.find((question) => question.id === state.session.activeQuestionId)
   const activeEntry = state.queue.find((entry) => entry.id === state.session.activeEntryId)
@@ -434,8 +407,7 @@ function FacilitatorView({ state, online, identity, publicOrigin, onLogout, onAc
         </div>
         <section className="question-inbox panel"><div className="inbox-header"><div><span className="kicker">o tanque</span><h2>Perguntas recebidas</h2></div><span className="inbox-count">{waitingQuestions.length} novas</span></div>{waitingQuestions.length === 0 ? <div className="inbox-empty"><span>◌</span><div><strong>Nenhuma pergunta aguardando.</strong><p>Quando alguém enviar, ela aparece aqui para você escolher a próxima onda.</p></div></div> : <div className="question-grid">{waitingQuestions.map((question) => <article className="question-card" key={question.id}><div className="question-card-top"><span className="question-time">{formatRelativeTime(question.createdAt)}</span><span className="question-author"><span className="avatar avatar-tiny">{question.anonymous ? '?' : getInitials(question.authorName)}</span>{question.anonymous ? 'Anônimo' : question.authorName}</span></div><p>{question.text}</p><button className="button button-primary button-full" type="button" onClick={() => action({ type: 'select-question', questionId: question.id }, 'Pergunta aberta. A fila está liberada.')}>Abrir esta pergunta</button></article>)}</div>}</section>
         <section className="facilitator-settings panel"><div><span className="kicker">ritmo da sala</span><h2>Tempo por fala</h2><p>O cronômetro é um guia visual; a passagem é sempre manual.</p></div><div className="duration-toggle" role="group" aria-label="Tempo por fala">{[120, 180].map((duration) => <button type="button" key={duration} className={state.session.durationSeconds === duration ? 'is-active' : ''} onClick={() => action({ type: 'set-duration', durationSeconds: duration as 120 | 180 })}>{duration / 60} min</button>)}</div></section>
-        {state.permissions.canManageFacilitators && <FacilitatorAccess state={state} onAction={onAction} />}
-        {state.permissions.canManageFacilitators && <section className="session-reset panel"><div><span className="kicker">recomeçar</span><h2>Limpar a conversa</h2><p>Apaga perguntas e falas, mas mantém a sala e os facilitadores.</p></div><button className="button button-quiet" type="button" onClick={() => void action({ type: 'reset-session' }, 'A conversa foi reiniciada.')}>Reiniciar sessão</button></section>}
+        {state.permissions.canFacilitate && <section className="session-reset panel"><div><span className="kicker">recomeçar</span><h2>Limpar a conversa</h2><p>Apaga perguntas e falas, mas mantém a sala e seus participantes.</p></div><button className="button button-quiet" type="button" onClick={() => void action({ type: 'reset-session' }, 'A conversa foi reiniciada.')}>Reiniciar sessão</button></section>}
       </main>
     </div>
   )
@@ -503,7 +475,7 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
 
   if (missing) return <div className="not-found"><Brand /><span className="empty-fin">◒</span><h1>Essa sala saiu do radar.</h1><p>Confira o link ou volte para o lobby.</p><a className="button button-primary" href="/">Ver salas abertas</a></div>
   if (!state) return <div className="loading-screen"><span className="loading-fin">◒</span><p>abrindo a sala…</p></div>
-  if (facilitator && !state.permissions.canFacilitate) return <div className="not-found"><Brand /><span className="empty-fin">◒</span><h1>Essa sala está em boas mãos.</h1><p>Somente o dono ou facilitadores indicados podem abrir o painel de controle.</p><a className="button button-primary" href={roomPath(state.room.slug)}>Participar da sala</a></div>
+  if (facilitator && !state.permissions.canFacilitate) return <div className="not-found"><Brand /><span className="empty-fin">◒</span><h1>Essa sala está em boas mãos.</h1><p>Somente o dono da sala pode abrir o painel de controle.</p><a className="button button-primary" href={roomPath(state.room.slug)}>Participar da sala</a></div>
   return <>{facilitator ? <FacilitatorView state={state} online={online} identity={identity} publicOrigin={publicAppOrigin} onLogout={onLogout} onAction={onAction} onMessage={setMessage} /> : <ParticipantView state={state} online={online} identity={identity} publicOrigin={publicAppOrigin} onLogout={onLogout} onAction={onAction} onMessage={setMessage} />}{message && <Notice message={message} onDismiss={() => setMessage('')} />}</>
 }
 
@@ -575,7 +547,7 @@ function App() {
       ? <IdentityGate error={error} onLogin={login} />
       : <AuthenticatedApp identity={identity} onLogout={logout} onUnauthorized={expire} />
 
-  return <ThemeContext.Provider value={{ theme, toggleTheme: () => setTheme((current) => current === 'dark' ? 'light' : 'dark') }}>{content}</ThemeContext.Provider>
+  return <ThemeContext.Provider value={{ theme, toggleTheme: () => setTheme((current) => current === 'dark' ? 'light' : 'dark') }}>{content}<footer className="repository-footer"><a href="https://github.com/PHPcomRapadura/SharkBowl" target="_blank" rel="noopener noreferrer">Código do SharkBowl no GitHub ↗</a></footer></ThemeContext.Provider>
 }
 
 export default App
