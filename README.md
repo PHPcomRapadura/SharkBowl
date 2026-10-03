@@ -43,11 +43,11 @@ Não coloque o Client Secret do GitHub no repositório, no frontend ou no `.env`
 
 ## Implantar na VPS
 
-O Compose publica o serviço apenas em `127.0.0.1:8090`; conecte o proxy já existente a essa porta e faça o proxy de HTTP, WebSocket/SSE e `/_/` para o mesmo domínio da aplicação.
+Em produção, `compose.production.yaml` conecta o PocketBase à rede `reverse-proxy`, sem publicar portas no host. O Tevun serve a aplicação em `https://bowl.devi.tools` e mantém os dados no volume `sharkbowl_pocketbase_data`.
 
 ```bash
-docker compose up --build -d
-docker compose ps
+COMPOSE_PROJECT_NAME=sharkbowl bash .tevun/hooks/install.sh "$PWD"
+docker compose -p sharkbowl -f compose.yaml -f compose.production.yaml ps
 ```
 
 Na produção, não defina `VITE_POCKETBASE_URL`: frontend, API e Realtime usam a mesma origem pública. Se o build for feito fora do domínio final, defina `VITE_PUBLIC_APP_URL=https://seu-dominio` antes de construir para que o QR Code use a URL correta.
@@ -81,4 +81,4 @@ npm run build
 docker compose config
 ```
 
-As migrações em `pb_migrations/` são executadas automaticamente na primeira inicialização de um volume novo. O JSON histórico em `data/rooms.json` não é lido pela nova versão; ele continua preservado localmente como backup.
+O hook de publicação executa as migrações pendentes em `pb_migrations/` antes de iniciar o serviço; a imagem desabilita a migração automática ao iniciar. O JSON histórico em `data/rooms.json` não é lido pela nova versão; ele continua preservado localmente como backup.
