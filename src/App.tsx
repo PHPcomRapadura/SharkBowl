@@ -114,6 +114,8 @@ function RoomShare({ room, publicOrigin, prominent = false }: { room: Room; publ
 }
 
 function Header({ online, identity, onLogout, room, publicOrigin, facilitator, canFacilitate = false }: { online: boolean; identity: Identity; onLogout: () => void; room?: Room; publicOrigin?: string | null; facilitator?: boolean; canFacilitate?: boolean }) {
+  const [accountOpen, setAccountOpen] = useState(false)
+
   return (
     <header className="topbar">
       <Brand />
@@ -122,10 +124,13 @@ function Header({ online, identity, onLogout, room, publicOrigin, facilitator, c
         <ConnectionStatus online={online} />
         {room && <RoomShare room={room} publicOrigin={publicOrigin} />}
         {room && (facilitator || canFacilitate) && <a className="mode-link" href={facilitator ? roomPath(room.slug) : facilitatorPath(room.slug)}>{facilitator ? 'Participar' : 'Facilitar'}</a>}
-        <button className="identity-control" type="button" onClick={onLogout} title="Trocar de pessoa">
-          <span className="avatar avatar-tiny">{getInitials(identity.name)}</span>
-          <span>{identity.name}</span>
-        </button>
+        <div className="account-control" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setAccountOpen(false) }} onKeyDown={(event) => { if (event.key === 'Escape') { setAccountOpen(false); event.currentTarget.querySelector('button')?.focus() } }}>
+          <button className="identity-control" type="button" onClick={() => setAccountOpen((open) => !open)} aria-expanded={accountOpen} aria-controls="account-options" aria-label={`Conta de ${identity.name}`}>
+            <span className="avatar avatar-tiny">{getInitials(identity.name)}</span>
+            <span>{identity.name}</span>
+          </button>
+          {accountOpen && <div className="account-options" id="account-options"><button type="button" onClick={onLogout}>Sair da conta</button></div>}
+        </div>
       </div>
     </header>
   )
@@ -185,15 +190,17 @@ function LobbyView({ identity, onLogout, onUnauthorized }: { identity: Identity;
         const nextLobby = await requestJson<LobbyState>('/lobby')
         if (!cancelled) setLobby(nextLobby)
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) onUnauthorized()
+        if (!cancelled && error instanceof ApiError && error.status === 401) onUnauthorized()
         else if (!cancelled) setMessage(error instanceof Error ? error.message : 'Não foi possível abrir o lobby.')
       }
     }
     const connect = async () => {
       await load()
+      if (cancelled) return
       try {
         unsubscribe = await pocketbase.collection('rooms').subscribe('*', () => { void load() })
-        if (!cancelled) setOnline(true)
+        if (cancelled) await unsubscribe()
+        else setOnline(true)
       } catch {
         if (!cancelled) setOnline(false)
       }
@@ -457,7 +464,7 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
         if (!cancelled) setState(nextState)
         return nextState
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) onUnauthorized()
+        if (!cancelled && error instanceof ApiError && error.status === 401) onUnauthorized()
         else if (error instanceof ApiError && error.status === 404) {
           if (!cancelled) setMissing(true)
         } else if (!cancelled) setMessage(error instanceof Error ? error.message : 'Não foi possível abrir a sala.')
@@ -466,10 +473,11 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
     }
     const connect = async () => {
       const initial = await load(true)
-      if (!initial || !roomRecordId) return
+      if (cancelled || !initial || !roomRecordId) return
       try {
         unsubscribe = await pocketbase.collection('rooms').subscribe(roomRecordId, () => { void load() })
-        if (!cancelled) setOnline(true)
+        if (cancelled) await unsubscribe()
+        else setOnline(true)
       } catch {
         if (!cancelled) setOnline(false)
       }
@@ -547,11 +555,17 @@ function App() {
 
   const logout = () => {
     pocketbase.authStore.clear()
+    pocketbase.cancelAllRequests()
+    void pocketbase.realtime.unsubscribe()
+    setError('')
     setIdentity(null)
   }
 
   const expire = () => {
     pocketbase.authStore.clear()
+    pocketbase.cancelAllRequests()
+    void pocketbase.realtime.unsubscribe()
+    setError('')
     setIdentity(null)
   }
 
