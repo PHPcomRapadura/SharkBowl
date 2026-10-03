@@ -34,6 +34,13 @@ function requireParticipant(app, room, userId) {
   return membership
 }
 
+function checkControlVersion(room, body) {
+  if (!Number.isSafeInteger(body.expectedControlVersion) || body.expectedControlVersion !== room.getInt('control_version')) {
+    throw new ApiError(409, 'A sala mudou em outra tela. Confira o estado atualizado e tente novamente.')
+  }
+  room.set('control_version', room.getInt('control_version') + 1)
+}
+
 function requireOwner(room, userId) {
   if (room.getString('owner') !== userId) throw new ForbiddenError('Apenas o dono da sala pode controlar esta sala.')
 }
@@ -88,7 +95,7 @@ function createRecord(app, collectionName, values) {
 }
 
 function touchRoom(app, room, values = {}) {
-  room.load({ ...values, activity_at: Date.now() })
+  room.load({ ...values, activity_at: Date.now(), revision: room.getInt('revision') + 1 })
   app.save(room)
   return room
 }
@@ -111,6 +118,7 @@ function roomState(app, room, currentUserId) {
   const questions = roomQuestions(app, room.id)
   const queue = roomQueue(app, room.id)
   const memberships = roomMemberships(app, room.id)
+  const votes = app.findRecordsByFilter('question_votes', 'room = {:room}', '', 0, 0, { room: room.id })
   const activeQuestionId = room.getString('active_question_id') || null
   const activeEntryId = room.getString('active_entry_id') || null
   const ownerId = room.getString('owner')
@@ -135,6 +143,8 @@ function roomState(app, room, currentUserId) {
       activeEntryId,
       speechStartedAt: room.getInt('speech_started_at') || null,
       durationSeconds: room.getInt('duration_seconds'),
+      revision: room.getInt('revision'),
+      controlVersion: room.getInt('control_version'),
       updatedAt: room.getInt('activity_at') || timestamp(room.getString('updated')),
     },
     questions: questions.map((question) => {
@@ -147,6 +157,8 @@ function roomState(app, room, currentUserId) {
         anonymous,
         createdAt: timestamp(question.getString('created')),
         status: question.getString('status'),
+        voteCount: votes.filter((vote) => vote.getString('question') === question.id).length,
+        votedByMe: votes.some((vote) => vote.getString('question') === question.id && vote.getString('user') === currentUserId),
       }
     }),
     queue: queue.map((entry) => {
@@ -219,10 +231,28 @@ function createRoom(app, userId, title) {
   return room
 }
 
+function validateDuration(value) {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > 86400) {
+    throw new BadRequestError('Informe um tempo entre 1 segundo e 1440 minutos, em segundos inteiros.')
+  }
+  return value
+}
+
 function applyAction(app, room, userId, body) {
   const type = String(body.type ?? '')
   const activeQuestionId = room.getString('active_question_id')
   const activeEntryId = room.getString('active_entry_id')
+  if (type === 'set-vote') {
+    requireParticipant(app, room, userId)
+    if (typeof body.enabled !== 'boolean') throw new BadRequestError('Informe se deseja votar ou desfazer o voto.')
+    const question = findQuestion(app, room.id, normalizedText(body.questionId, 15))
+    if (question.getString('status') !== 'waiting') throw new BadRequestError('Vote apenas nas perguntas aguardando abertura.')
+    const existing = app.findRecordsByFilter('question_votes', 'question = {:question} && user = {:user}', '', 1, 0, { question: question.id, user: userId })[0]
+    if (body.enabled && !existing) createRecord(app, 'question_votes', { room: room.id, question: question.id, user: userId })
+    if (!body.enabled && existing) app.delete(existing)
+    touchRoom(app, room)
+    return
+  }
   if (type === 'submit-question') {
     requireParticipant(app, room, userId)
     const text = normalizedText(body.text, 280)
@@ -252,8 +282,17 @@ function applyAction(app, room, userId, body) {
     return
   }
   requireOwner(room, userId)
+  checkControlVersion(room, body)
+  if (type === 'transfer-ownership') {
+    const targetId = normalizedText(body.userId, 15)
+    if (!targetId || targetId === userId) throw new BadRequestError('Escolha outro participante para receber a sala.')
+    if (!getMembership(app, room.id, targetId)) throw new BadRequestError('A pessoa precisa entrar nesta sala antes de recebê-la.')
+    touchRoom(app, room, { owner: targetId })
+    return
+  }
   if (type === 'select-question') {
     if (activeEntryId) throw new BadRequestError('Finalize a fala atual antes de trocar de pergunta.')
+    const durationSeconds = validateDuration(body.durationSeconds ?? room.getInt('duration_seconds'))
     const question = findQuestion(app, room.id, normalizedText(body.questionId, 15))
     roomQuestions(app, room.id).forEach((item) => {
       if (item.getString('status') === 'active') {
@@ -263,7 +302,7 @@ function applyAction(app, room, userId, body) {
     })
     question.set('status', 'active')
     app.save(question)
-    touchRoom(app, room, { phase: 'running', active_question_id: question.id, active_entry_id: '', speech_started_at: 0 })
+    touchRoom(app, room, { phase: 'running', active_question_id: question.id, active_entry_id: '', speech_started_at: 0, duration_seconds: durationSeconds })
     return
   }
   if (type === 'start-next') {
@@ -293,8 +332,8 @@ function applyAction(app, room, userId, body) {
     return
   }
   if (type === 'set-duration') {
-    const durationSeconds = Number(body.durationSeconds)
-    if (durationSeconds !== 120 && durationSeconds !== 180) throw new BadRequestError('O tempo deve ser de 2 ou 3 minutos.')
+    if (activeEntryId) throw new BadRequestError('Finalize a fala atual antes de alterar o tempo.')
+    const durationSeconds = validateDuration(body.durationSeconds)
     touchRoom(app, room, { duration_seconds: durationSeconds })
     return
   }

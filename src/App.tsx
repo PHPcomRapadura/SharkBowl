@@ -340,9 +340,26 @@ function ActiveQuestionCard({ question, queue, participantId, onJoin }: { questi
   )
 }
 
+const compareQuestionVotes = (left: Question, right: Question) => right.voteCount - left.voteCount || left.createdAt - right.createdAt || left.id.localeCompare(right.id)
+
+function QuestionVote({ question, onAction }: { question: Question; onAction: (action: Action) => Promise<void> }) {
+  const [voting, setVoting] = useState(false)
+  const vote = async () => {
+    if (voting) return
+    setVoting(true)
+    try {
+      await onAction({ type: 'set-vote', questionId: question.id, enabled: !question.votedByMe })
+    } finally {
+      setVoting(false)
+    }
+  }
+  return <button className={`question-vote ${question.votedByMe ? 'is-voted' : ''}`} type="button" aria-pressed={question.votedByMe} aria-label={`${question.votedByMe ? 'Desfazer voto' : 'Votar'} na pergunta: ${question.text}. ${question.voteCount} votos`} disabled={voting} onClick={() => void vote()}><span aria-hidden="true">↑</span><strong>{question.voteCount}</strong><span>{question.votedByMe ? 'Votado' : 'Votar'}</span></button>
+}
+
 function ParticipantView({ state, online, identity, publicOrigin, onLogout, onAction, onMessage }: { state: AppState; online: boolean; identity: Identity; publicOrigin: string | null | undefined; onLogout: () => void; onAction: (action: Action) => Promise<void>; onMessage: (message: string) => void }) {
   const activeQuestion = state.questions.find((question) => question.id === state.session.activeQuestionId)
   const activeQueue = activeQuestion ? state.queue.filter((entry) => entry.questionId === activeQuestion.id) : []
+  const pendingQuestions = state.questions.filter((question) => question.status === 'waiting').sort(compareQuestionVotes)
   const myQuestions = state.questions.filter((question) => !question.anonymous && question.authorName === identity.name).slice(-3).reverse()
 
   const submitQuestion = async (text: string, anonymous: boolean) => {
@@ -357,6 +374,7 @@ function ParticipantView({ state, online, identity, publicOrigin, onLogout, onAc
         <section className="welcome-row panel-enter"><div><h1 className="room-title">{state.room.title}</h1><p className="room-subtitle">Oi, <span>{identity.name}</span>.</p><p>A sala está aberta. Pergunte, escute, entre na conversa.</p></div><a className="back-to-lobby" href="/">ver todas as salas</a></section>
         <QuestionComposer onSubmit={submitQuestion} />
         <ActiveQuestionCard question={activeQuestion} queue={activeQueue} participantId={identity.id} onJoin={(replyToEntryId) => onAction({ type: 'join-queue', replyToEntryId })} />
+        <section className="pending-questions panel"><div className="section-heading"><div><span className="kicker">escolha da comunidade</span><h2>Perguntas aguardando</h2></div><span>{pendingQuestions.length}</span></div><p className="voting-help">Vote nas perguntas que gostaria de ouvir. O dono decide qual abrir.</p>{pendingQuestions.length ? <div className="question-grid">{pendingQuestions.map((question) => <article className="question-card" key={question.id}><div className="question-card-top"><span className="question-time">{formatRelativeTime(question.createdAt)}</span><span className="question-author">{question.authorName}</span></div><p>{question.text}</p><QuestionVote question={question} onAction={onAction} /></article>)}</div> : <p className="voting-help">Nenhuma pergunta aguardando. Envie a primeira.</p>}</section>
         {myQuestions.length > 0 && <section className="my-questions panel-enter"><div className="section-heading"><div><span className="kicker">seu rastro</span><h2>Perguntas enviadas</h2></div><span>{myQuestions.length}</span></div><div className="my-question-list">{myQuestions.map((question) => <div className="my-question" key={question.id}><span className={`status-dot status-${question.status}`} /><p>{question.text}</p><span className="question-status">{question.status === 'waiting' ? 'na fila' : question.status === 'active' ? 'em pauta' : 'encerrada'}</span></div>)}</div></section>}
       </main>
       <footer className="site-footer"><span>Shark Bowl para a PHPinda</span><span>{state.room.title}</span></footer>
@@ -382,11 +400,31 @@ function QueueRow({ entry, index, active }: { entry: QueueEntry; index: number; 
   return <div className={`queue-row ${active ? 'is-speaking' : ''}`}><span className="queue-index">{String(index + 1).padStart(2, '0')}</span><span className="avatar avatar-small">{getInitials(entry.participantName)}</span><div className="queue-person"><strong>{entry.participantName}</strong>{entry.replyToName && <span>↳ réplica para {entry.replyToName}</span>}</div>{active ? <span className="speaking-pill">falando</span> : <span className={`entry-state state-${entry.status}`}>{entry.status === 'finished' ? 'falou' : 'aguardando'}</span>}</div>
 }
 
+function RoomTransfer({ state, onAction }: { state: AppState; onAction: (action: Action) => Promise<void> }) {
+  const [recipientId, setRecipientId] = useState('')
+  const [transferring, setTransferring] = useState(false)
+  const recipients = state.participants.filter((participant) => participant.id !== state.room.ownerId)
+  const recipient = recipients.find((participant) => participant.id === recipientId)
+  const transfer = async () => {
+    if (!recipient || transferring || !window.confirm(`Transferir “${state.room.title}” para ${recipient.name}? Você perderá imediatamente o controle e continuará como participante. Somente o novo dono poderá transferir a sala de volta.`)) return
+    setTransferring(true)
+    try {
+      await onAction({ type: 'transfer-ownership', userId: recipient.id })
+    } catch {
+      setTransferring(false)
+    }
+  }
+  return <section className="session-reset panel"><div><span className="kicker">trocar quem conduz</span><h2>Transferir sala</h2><p>A sala mantém perguntas, votos e fila. Você perde o controle; a pessoa escolhida será o único dono.</p></div><div className="duration-choice"><label htmlFor="room-recipient">Novo dono</label><select id="room-recipient" value={recipientId} onChange={(event) => setRecipientId(event.target.value)} disabled={transferring}><option value="">Escolha um participante</option>{recipients.map((participant) => <option key={participant.id} value={participant.id}>{participant.name}</option>)}</select>{recipients.length === 0 && <small>Outra pessoa precisa entrar na sala para recebê-la.</small>}<button className="button button-quiet" type="button" disabled={!recipient || transferring} onClick={() => void transfer()}>{transferring ? 'Transferindo…' : 'Transferir sala'}</button></div></section>
+}
+
 function FacilitatorView({ state, online, identity, publicOrigin, onLogout, onAction, onMessage }: { state: AppState; online: boolean; identity: Identity; publicOrigin: string | null | undefined; onLogout: () => void; onAction: (action: Action) => Promise<void>; onMessage: (message: string) => void }) {
+  const [durationMinutes, setDurationMinutes] = useState(String(state.session.durationSeconds / 60))
+  const selectedDuration = Number(durationMinutes) * 60
+  const durationValid = durationMinutes.trim() !== '' && Number.isSafeInteger(selectedDuration) && selectedDuration >= 1 && selectedDuration <= 86400
   const activeQuestion = state.questions.find((question) => question.id === state.session.activeQuestionId)
   const activeEntry = state.queue.find((entry) => entry.id === state.session.activeEntryId)
   const activeQueue = activeQuestion ? state.queue.filter((entry) => entry.questionId === activeQuestion.id).sort((a, b) => a.createdAt - b.createdAt) : []
-  const waitingQuestions = state.questions.filter((question) => question.status === 'waiting').sort((a, b) => a.createdAt - b.createdAt)
+  const waitingQuestions = state.questions.filter((question) => question.status === 'waiting').sort(compareQuestionVotes)
   const waitingEntries = activeQueue.filter((entry) => entry.status === 'waiting')
   const completedEntries = activeQueue.filter((entry) => entry.status === 'finished')
 
@@ -405,8 +443,10 @@ function FacilitatorView({ state, online, identity, publicOrigin, onLogout, onAc
           <section className="control-stage panel"><div className="stage-header"><span className="kicker">agora</span><span className={`phase-chip phase-${state.session.phase}`}>{state.session.phase === 'running' ? 'em andamento' : 'aguardando'}</span></div>{activeQuestion ? <><div className="active-prompt"><span className="prompt-mark">“</span><p>{activeQuestion.text}</p><div className="question-byline"><span className="avatar avatar-small">{activeQuestion.anonymous ? '?' : getInitials(activeQuestion.authorName)}</span><span>{activeQuestion.anonymous ? 'Anônimo' : activeQuestion.authorName}</span></div></div><div className="stage-live-row"><Timer startedAt={state.session.speechStartedAt} durationSeconds={state.session.durationSeconds} /><div className="speaker-now"><span className="kicker">no microfone</span>{activeEntry ? <><strong>{activeEntry.participantName}</strong>{activeEntry.replyToName && <span>Réplica para {activeEntry.replyToName}</span>}</> : <strong className="muted-text">Ninguém ainda</strong>}</div></div><div className="stage-actions">{activeEntry ? <button className="button button-coral action-button" type="button" onClick={() => action({ type: 'finish-current' }, waitingEntries.length > 0 ? 'Fala passada. Cronômetro reiniciado.' : 'Fala encerrada. A fila continua aberta.')}>Passar para próxima fala <span>↗</span></button> : <button className="button button-primary action-button" type="button" onClick={() => action({ type: 'start-next' })} disabled={waitingEntries.length === 0}>Iniciar próxima fala <span>↗</span></button>}<button className="button button-quiet" type="button" onClick={() => action({ type: 'close-question' }, 'Pergunta encerrada. A sala está pronta para outra.')}>Encerrar pergunta</button></div>{waitingEntries.length === 0 && <div className="open-queue-note"><span>⌁</span><div><strong>Fila aberta</strong><span>Ninguém na fila agora. Novas inscrições não encerram esta pergunta.</span></div></div>}</> : <div className="control-empty"><div className="empty-buoy">◒</div><h2>Escolha uma pergunta para começar.</h2><p>As perguntas que chegam aparecem logo abaixo. A fila só abre depois que você selecionar uma.</p></div>}</section>
           <section className="queue-panel panel"><div className="queue-panel-header"><div><span className="kicker">ordem da palavra</span><h2>Fila de fala</h2></div><span className="queue-total">{waitingEntries.length} <small>aguardando</small></span></div><div className="queue-list">{activeEntry && <QueueRow entry={activeEntry} index={0} active />}{waitingEntries.map((entry, index) => <QueueRow entry={entry} index={index + (activeEntry ? 1 : 0)} key={entry.id} />)}{!activeEntry && waitingEntries.length === 0 && <div className="queue-empty"><span>⌁</span><p>A fila está tranquila.<br /><small>O próximo mergulho entra pelo celular.</small></p></div>}</div>{completedEntries.length > 0 && <div className="completed-queue"><span className="kicker">já falaram · {completedEntries.length}</span>{completedEntries.slice(-3).map((entry) => <div className="completed-row" key={entry.id}><span className="check-badge">✓</span><span>{entry.participantName}</span>{entry.replyToName && <small>réplica</small>}</div>)}</div>}</section>
         </div>
-        <section className="question-inbox panel"><div className="inbox-header"><div><span className="kicker">o tanque</span><h2>Perguntas recebidas</h2></div><span className="inbox-count">{waitingQuestions.length} novas</span></div>{waitingQuestions.length === 0 ? <div className="inbox-empty"><span>◌</span><div><strong>Nenhuma pergunta aguardando.</strong><p>Quando alguém enviar, ela aparece aqui para você escolher a próxima onda.</p></div></div> : <div className="question-grid">{waitingQuestions.map((question) => <article className="question-card" key={question.id}><div className="question-card-top"><span className="question-time">{formatRelativeTime(question.createdAt)}</span><span className="question-author"><span className="avatar avatar-tiny">{question.anonymous ? '?' : getInitials(question.authorName)}</span>{question.anonymous ? 'Anônimo' : question.authorName}</span></div><p>{question.text}</p><button className="button button-primary button-full" type="button" onClick={() => action({ type: 'select-question', questionId: question.id }, 'Pergunta aberta. A fila está liberada.')}>Abrir esta pergunta</button></article>)}</div>}</section>
-        <section className="facilitator-settings panel"><div><span className="kicker">ritmo da sala</span><h2>Tempo por fala</h2><p>O cronômetro é um guia visual; a passagem é sempre manual.</p></div><div className="duration-toggle" role="group" aria-label="Tempo por fala">{[120, 180].map((duration) => <button type="button" key={duration} className={state.session.durationSeconds === duration ? 'is-active' : ''} onClick={() => action({ type: 'set-duration', durationSeconds: duration as 120 | 180 })}>{duration / 60} min</button>)}</div></section>
+        <section className="facilitator-settings panel"><div><span className="kicker">próxima pergunta</span><h2>Tempo por fala</h2><p>Aplicado ao abrir uma pergunta. A passagem de fala continua manual.</p></div><div className="duration-choice"><div className="duration-toggle" role="group" aria-label="Tempos sugeridos">{[2, 3, 5].map((minutes) => <button type="button" key={minutes} aria-pressed={Number(durationMinutes) === minutes} className={Number(durationMinutes) === minutes ? 'is-active' : ''} onClick={() => setDurationMinutes(String(minutes))}>{minutes} min</button>)}</div><label htmlFor="speech-minutes">Personalizado (minutos)</label><input id="speech-minutes" type="number" inputMode="decimal" min={1 / 60} max="1440" step="any" value={durationMinutes} onChange={(event) => setDurationMinutes(event.target.value)} aria-invalid={!durationValid} aria-describedby="speech-duration-help" /><small id="speech-duration-help">{durationValid ? 'De 1 segundo a 1440 minutos; aceita frações em segundos inteiros.' : 'Informe um tempo positivo de até 1440 minutos, equivalente a segundos inteiros.'}</small>{activeEntry && <p>Finalize a fala atual antes de abrir outra pergunta.</p>}</div></section>
+        <section className="question-inbox panel"><div className="inbox-header"><div><span className="kicker">o tanque</span><h2>Perguntas recebidas</h2></div><span className="inbox-count">{waitingQuestions.length} novas</span></div>{waitingQuestions.length === 0 ? <div className="inbox-empty"><span>◌</span><div><strong>Nenhuma pergunta aguardando.</strong><p>Quando alguém enviar, ela aparece aqui para você escolher a próxima onda.</p></div></div> : <div className="question-grid">{waitingQuestions.map((question) => <article className="question-card" key={question.id}><div className="question-card-top"><span className="question-time">{formatRelativeTime(question.createdAt)}</span><span className="question-author"><span className="avatar avatar-tiny">{question.anonymous ? '?' : getInitials(question.authorName)}</span>{question.anonymous ? 'Anônimo' : question.authorName}</span></div><p>{question.text}</p><QuestionVote question={question} onAction={onAction} /><button className="button button-primary button-full" type="button" onClick={() => action({ type: 'select-question', questionId: question.id, durationSeconds: selectedDuration }, 'Pergunta aberta. A fila está liberada.')} disabled={!durationValid || Boolean(activeEntry)}>Abrir esta pergunta</button></article>)}</div>}</section>
+
+        {state.permissions.canFacilitate && <RoomTransfer state={state} onAction={onAction} />}
         {state.permissions.canFacilitate && <section className="session-reset panel"><div><span className="kicker">recomeçar</span><h2>Limpar a conversa</h2><p>Apaga perguntas e falas, mas mantém a sala e seus participantes.</p></div><button className="button button-quiet" type="button" onClick={() => void action({ type: 'reset-session' }, 'A conversa foi reiniciada.')}>Reiniciar sessão</button></section>}
       </main>
     </div>
@@ -422,6 +462,7 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
   useEffect(() => {
     let cancelled = false
     let unsubscribe: (() => Promise<void>) | undefined
+    let unsubscribeConnect: (() => Promise<void>) | undefined
     let roomRecordId = ''
     const load = async (join = false) => {
       try {
@@ -429,11 +470,11 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
         if (join) {
           const joinedState = await requestJson<AppState>(`/rooms/${encodeURIComponent(roomId)}/join`, { method: 'POST' })
           roomRecordId = joinedState.room.id
-          if (!cancelled) setState(joinedState)
+          if (!cancelled) setState((current) => !current || joinedState.session.revision >= current.session.revision ? joinedState : current)
           return joinedState
         }
         roomRecordId = nextState.room.id
-        if (!cancelled) setState(nextState)
+        if (!cancelled) setState((current) => !current || nextState.session.revision >= current.session.revision ? nextState : current)
         return nextState
       } catch (error) {
         if (!cancelled && error instanceof ApiError && error.status === 401) onUnauthorized()
@@ -448,7 +489,9 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
       if (cancelled || !initial || !roomRecordId) return
       try {
         unsubscribe = await pocketbase.collection('rooms').subscribe(roomRecordId, () => { void load() })
-        if (cancelled) await unsubscribe()
+        unsubscribeConnect = await pocketbase.realtime.subscribe('PB_CONNECT', () => { if (!cancelled) void load() })
+        if (!cancelled) await load()
+        if (cancelled) { await unsubscribe(); await unsubscribeConnect() }
         else setOnline(true)
       } catch {
         if (!cancelled) setOnline(false)
@@ -458,15 +501,20 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
     return () => {
       cancelled = true
       void unsubscribe?.()
+      void unsubscribeConnect?.()
     }
   }, [onUnauthorized, roomId])
 
   const onAction = async (action: Action) => {
     try {
-      const nextState = await requestJson<AppState>(`/rooms/${encodeURIComponent(roomId)}/actions`, { method: 'POST', body: action })
-      setState(nextState)
+      const nextState = await requestJson<AppState>(`/rooms/${encodeURIComponent(roomId)}/actions`, { method: 'POST', body: { ...action, expectedControlVersion: state?.session.controlVersion } })
+      setState((current) => !current || nextState.session.revision >= current.session.revision ? nextState : current)
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) onUnauthorized()
+      if (error instanceof ApiError && error.status === 409) {
+        const refreshed = await requestJson<AppState>(`/rooms/${encodeURIComponent(roomId)}/state`)
+        setState((current) => !current || refreshed.session.revision >= current.session.revision ? refreshed : current)
+      }
       const nextMessage = error instanceof Error ? error.message : 'Não foi possível atualizar a sala.'
       setMessage(nextMessage)
       throw error

@@ -40,6 +40,8 @@ export type Question = {
   anonymous: boolean
   createdAt: number
   status: QuestionStatus
+  voteCount: number
+  votedByMe: boolean
 }
 
 export type QueueEntry = {
@@ -60,6 +62,8 @@ export type Session = {
   activeEntryId: string | null
   speechStartedAt: number | null
   durationSeconds: number
+  revision: number
+  controlVersion: number
   updatedAt: number
 }
 
@@ -78,11 +82,13 @@ export type AppState = {
 
 export type Action =
   | { type: 'join-room' }
+  | { type: 'set-vote'; questionId: string; enabled: boolean }
   | { type: 'submit-question'; text: string; anonymous: boolean }
   | { type: 'join-queue'; replyToEntryId?: string | null }
-  | { type: 'select-question'; questionId: string }
+  | { type: 'select-question'; questionId: string; durationSeconds: number }
   | { type: 'start-next' }
   | { type: 'finish-current' }
-  | { type: 'set-duration'; durationSeconds: 120 | 180 }
+  | { type: 'set-duration'; durationSeconds: number }
   | { type: 'close-question' }
   | { type: 'reset-session' }
+  | { type: 'transfer-ownership'; userId: string }

@@ -62,7 +62,7 @@ O volume `pocketbase_data` contém usuários, salas e configurações OAuth. Fa�
 
 - GitHub é obrigatório para participar, criar salas e entrar na fila.
 - Qualquer pessoa autenticada pode criar uma sala e se torna seu dono.
-- Somente o dono da sala podem abrir perguntas, controlar a fila e definir o tempo.
+- O dono e os facilitadores convidados podem abrir perguntas, controlar a fila e definir o tempo.
 - Apenas o dono pode reiniciar uma sessão; a sala e seus participantes permanecem.
 - Perguntas anônimas nunca retornam a identidade do autor para o navegador.
 - As coleções de perguntas, fila e membros não aceitam escrita direta pelo cliente. As ações passam por rotas transacionais no PocketBase.
@@ -89,3 +89,7 @@ O hook de publicação executa as migrações pendentes em `pocketbase/migration
 `pocketbase/hooks` e `pocketbase/migrations` reúnem o backend. `pocketbase/bootstrap.sh` prepara o binário oficial PocketBase 0.40.4 no volume `pocketbase_binary`, valida seu SHA-256 e fornece os certificados para OAuth HTTPS. O serviço usa `alpine:3.21`, sem Dockerfile próprio. O volume `pocketbase_data` permanece separado e persistente.
 
 Em desenvolvimento, execute `npm run dev` para o frontend conectado ao PocketBase em container. Na produção, a pipeline compila `dist/client` e copia o override de `.tevun/environment/bowl.devi.tools` para `docker-compose.override.yml` no snapshot. Frontend compilado, hooks e migrações são montados somente para leitura; não há build de imagem da aplicação.
+
+Ao abrir uma pergunta, o dono escolhe 2, 3, 5 minutos ou um tempo personalizado por fala (1 segundo a 1440 minutos). A duração é aplicada na abertura da pergunta, sem alterar a fala em andamento. Participantes da sala podem votar nas perguntas pendentes e desfazer seus votos; cada pessoa tem um voto por pergunta, e somente contagem e seu próprio estado de voto são enviados ao navegador. As listas priorizam votos, com desempate por envio; a abertura permanece manual.
+
+Somente o dono controla a sala. Ele pode transferi-la para outro participante autenticado que já entrou nela; o destinatário vira o único dono e o anterior perde imediatamente o controle. Perguntas, votos e fila são preservados. Papéis antigos não autorizam facilitação. Comandos de controle incluem uma versão do estado: comandos desatualizados são rejeitados e a tela recarrega a sala. Mudanças atualizam os clientes inscritos na mesma sala.
