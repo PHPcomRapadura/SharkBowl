@@ -1,0 +1,13 @@
+name: sharkbowl
+services:
+  pocketbase:
+    ports: !reset []
+    environment:
+      VIRTUAL_HOST: bowl.devi.tools
+      VIRTUAL_PORT: "8090"
+      LETSENCRYPT_HOST: bowl.devi.tools
+    networks:
+      - reverse-proxy
+networks:
+  reverse-proxy:
+    external: true
