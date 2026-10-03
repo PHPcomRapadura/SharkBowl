@@ -346,7 +346,7 @@ function QuestionVote({ question, onAction }: { question: Question; onAction: (a
       setVoting(false)
     }
   }
-  return <button className={`question-vote ${question.votedByMe ? 'is-voted' : ''}`} type="button" aria-pressed={question.votedByMe} aria-label={`${question.votedByMe ? 'Desfazer voto' : 'Votar'} na pergunta: ${question.text}. ${question.voteCount} votos`} disabled={voting} onClick={() => void vote()}><span aria-hidden="true">↑</span><strong>{question.voteCount}</strong><span>{question.votedByMe ? 'Votado' : 'Votar'}</span></button>
+  return <button className={`question-vote ${question.votedByMe ? 'is-voted' : ''}`} type="button" aria-pressed={question.votedByMe} aria-label={`${question.votedByMe ? 'Remover curtida' : 'Curtir pergunta'}: ${question.text}. ${question.voteCount} curtidas`} disabled={voting} onClick={() => void vote()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" /></svg><strong>{question.voteCount}</strong></button>
 }
 
 function ParticipantView({ state, online, identity, publicOrigin, onLogout, onAction, onMessage }: { state: AppState; online: boolean; identity: Identity; publicOrigin: string | null | undefined; onLogout: () => void; onAction: (action: Action) => Promise<void>; onMessage: (message: string) => void }) {
