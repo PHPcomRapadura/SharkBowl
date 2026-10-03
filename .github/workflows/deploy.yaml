@@ -1,0 +1,91 @@
+name: Build and deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main, ci/github-actions-tevun]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_PUBLIC_APP_URL: https://bowl.devi.tools
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: dist/client
+          if-no-files-found: error
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: sharkbowl-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend
+          path: dist/client
+      - name: Configure SSH
+        env:
+          DEPLOY_SERVER_PRIVATE_KEY: ${{ secrets.DEPLOY_SERVER_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          test -n "$DEPLOY_SERVER_PRIVATE_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SERVER_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Push deployment snapshot
+        env:
+          DEPLOY_REMOTE: ${{ vars.DEPLOY_REMOTE }}
+        run: |
+          test -n "$DEPLOY_REMOTE"
+          printf 'DEPLOY_DOCKERFILE=Dockerfile.deploy\n' > .deploy.env
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add -f dist/client
+          git add .deploy.env
+          git commit -m "build: Prepare production snapshot"
+          git push --force "$DEPLOY_REMOTE" HEAD:main
+      - name: Verify deployed container
+        env:
+          DEPLOY_REMOTE: ${{ vars.DEPLOY_REMOTE }}
+        run: |
+          expected=$(git rev-parse HEAD)
+          remote=${DEPLOY_REMOTE#ssh://}
+          host=${remote%%/*}
+          path=/${remote#*/}
+          ssh "$host" bash -s -- "$path" "$expected" <<'REMOTE'
+          set -euo pipefail
+          test "$(git --git-dir="$1" rev-parse main)" = "$2"
+          app="${1%/repo}/app"
+          test "$(git hash-object "$app/.deploy.env")" = "$(git --git-dir="$1" rev-parse main:.deploy.env)"
+          cd "$app"
+          docker compose --env-file .env --env-file .deploy.env -f compose.yaml -f compose.production.yaml config --quiet
+          id=$(docker compose --env-file .env --env-file .deploy.env -f compose.yaml -f compose.production.yaml ps -q pocketbase)
+          test -n "$id"
+          test "$(docker inspect "$id" --format '{{.State.Health.Status}}')" = healthy
+          image=$(docker compose --env-file .env --env-file .deploy.env -f compose.yaml -f compose.production.yaml images -q pocketbase)
+          test "$(docker inspect "$id" --format '{{.Image}}')" = "$(docker image inspect "$image" --format '{{.Id}}')"
+          REMOTE
+      - name: Verify public endpoints
+        run: |
+          curl --fail --silent --show-error --retry 8 --retry-delay 5 --retry-all-errors https://bowl.devi.tools/api/health
+          curl --fail --silent --show-error --location http://bowl.devi.tools/api/health
