@@ -33,7 +33,7 @@ test('legacy facilitator membership grants no control permissions', () => {
 })
 
 test('non-owner cannot perform control actions even with legacy facilitator role', () => {
-  for (const type of ['select-question', 'start-next', 'finish-current', 'set-duration', 'close-question', 'reset-session', 'set-facilitator']) {
+  for (const type of ['select-question', 'start-next', 'finish-current', 'set-duration', 'close-question', 'reset-session', 'set-facilitator', 'prioritize-reply']) {
     const { app, room, saves } = fixture()
     assert.throws(() => applyAction(app, room, 'guest', { type, durationSeconds: 120 }), ForbiddenError)
     assert.equal(saves(), 0)

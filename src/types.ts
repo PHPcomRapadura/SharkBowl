@@ -53,6 +53,9 @@ export type QueueEntry = {
   status: EntryStatus
   replyToEntryId: string | null
   replyToName: string | null
+  replyToSpeechNumber: number | null
+  speechNumber: number | null
+  orderIndex: number
 }
 
 export type Session = {
@@ -84,7 +87,7 @@ export type Action =
   | { type: 'join-room' }
   | { type: 'set-vote'; questionId: string; enabled: boolean }
   | { type: 'submit-question'; text: string; anonymous: boolean }
-  | { type: 'join-queue'; replyToEntryId?: string | null }
+  | { type: 'join-queue'; replyToEntryId?: string | null; isReply?: boolean }
   | { type: 'select-question'; questionId: string; durationSeconds: number }
   | { type: 'start-next' }
   | { type: 'finish-current' }
@@ -92,3 +95,4 @@ export type Action =
   | { type: 'close-question' }
   | { type: 'reset-session' }
   | { type: 'transfer-ownership'; userId: string }
+  | { type: 'prioritize-reply'; entryId: string }

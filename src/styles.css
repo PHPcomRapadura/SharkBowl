@@ -453,7 +453,7 @@ blockquote { margin: 25px 0 16px; max-width: 660px; font-size: clamp(24px, 4vw, 
 .welcome-row .room-title { margin-top: 0; }
 .welcome-row .room-subtitle, .facilitator-heading .room-subtitle { margin-top: 16px; color: var(--text); font-size: clamp(16px, 2.4vw, 20px); line-height: 1.4; }
 
-.repository-footer { padding: 16px 20px 28px; text-align: center; font-size: 12px; color: var(--muted); }
+.repository-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; padding: 16px 20px 28px; text-align: center; font-size: 12px; color: var(--muted); }
 .repository-footer a:hover { color: var(--text); }
 .repository-footer a:focus-visible { outline: 2px solid var(--teal); outline-offset: 4px; }
 
@@ -467,3 +467,14 @@ blockquote { margin: 25px 0 16px; max-width: 660px; font-size: clamp(24px, 4vw, 
 .question-vote.is-voted { color: var(--teal); background: var(--accent-muted); border-color: var(--teal); }
 .question-vote:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
 .question-vote:disabled { opacity: .6; cursor: wait; }
+
+.speech-history { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 20px; }
+.speech-history > p { margin: 10px 0 16px; font-size: 14px; color: var(--muted); }
+.speech-history-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.speech-history-row > div { min-width: 0; display: grid; gap: 5px; }
+.speech-history-row span { font-size: 12px; color: var(--muted); }
+.prioritize-reply { font-size: 11px; padding: 8px; }
+@media (max-width: 640px) { .speech-history-row { align-items: stretch; flex-direction: column; } .queue-row { flex-wrap: wrap; } .prioritize-reply { margin-left: auto; } }
+
+.community-logo { display: inline-flex; flex: 0 0 auto; }
+.community-logo img { display: block; border-radius: 50%; }

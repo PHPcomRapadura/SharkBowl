@@ -50,7 +50,7 @@ function roomQuestions(app, roomId) {
 }
 
 function roomQueue(app, roomId) {
-  return app.findRecordsByFilter('queue_entries', 'room = {:room}', '', 0, 0, { room: roomId }).sort((left, right) => timestamp(left.getString('created')) - timestamp(right.getString('created')))
+  return app.findRecordsByFilter('queue_entries', 'room = {:room}', '', 0, 0, { room: roomId }).sort((left, right) => left.getInt('order_index') - right.getInt('order_index') || left.id.localeCompare(right.id))
 }
 
 function roomMemberships(app, roomId) {
@@ -175,6 +175,9 @@ function roomState(app, room, currentUserId) {
         status: entry.getString('status'),
         replyToEntryId: replyToId,
         replyToName: replyToParticipant?.name ?? null,
+        replyToSpeechNumber: replyTo?.getInt('speech_number') || null,
+        speechNumber: entry.getInt('speech_number') || null,
+        orderIndex: entry.getInt('order_index'),
       }
     }),
     participants,
@@ -271,18 +274,34 @@ function applyAction(app, room, userId, body) {
       throw new BadRequestError('Você já está na fila desta pergunta.')
     }
     const replyToEntryId = normalizedText(body.replyToEntryId, 15)
+    if (body.isReply === true && !replyToEntryId) throw new BadRequestError('Escolha a fala à qual deseja responder.')
     if (replyToEntryId) {
       const replyTo = findQueueEntry(app, room.id, replyToEntryId)
-      if (!replyTo || replyTo.getString('question') !== activeQuestionId || !['finished', 'speaking'].includes(replyTo.getString('status'))) {
+      if (!replyTo || replyTo.getString('question') !== activeQuestionId || !['finished', 'speaking'].includes(replyTo.getString('status')) || replyTo.getInt('speech_number') < 1) {
         throw new BadRequestError('Essa réplica não está disponível nesta pergunta.')
       }
     }
-    createRecord(app, 'queue_entries', { room: room.id, question: activeQuestionId, participant: userId, reply_to_entry_id: replyToEntryId, status: 'waiting' })
+    createRecord(app, 'queue_entries', { room: room.id, question: activeQuestionId, participant: userId, reply_to_entry_id: replyToEntryId, status: 'waiting', order_index: Math.max(0, ...entries.filter((entry) => entry.getString('question') === activeQuestionId).map((entry) => entry.getInt('order_index'))) + 1 })
     touchRoom(app, room)
     return
   }
   requireOwner(room, userId)
   checkControlVersion(room, body)
+  if (type === 'prioritize-reply') {
+    if (!activeQuestionId) throw new BadRequestError('Não há pergunta ativa.')
+    const entry = findQueueEntry(app, room.id, normalizedText(body.entryId, 15))
+    if (!entry || entry.getString('question') !== activeQuestionId || entry.getString('status') !== 'waiting') throw new BadRequestError('A réplica precisa estar aguardando nesta pergunta.')
+    const target = findQueueEntry(app, room.id, entry.getString('reply_to_entry_id'))
+    if (!target || target.getString('question') !== activeQuestionId || target.getInt('speech_number') < 1 || !['speaking', 'finished'].includes(target.getString('status'))) throw new BadRequestError('Este pedido não é uma réplica válida.')
+    const waiting = roomQueue(app, room.id).filter((item) => item.getString('question') === activeQuestionId && item.getString('status') === 'waiting' && item.id !== entry.id)
+    const reordered = [entry, ...waiting]
+    reordered.forEach((item, index) => {
+      item.set('order_index', index + 1)
+      app.save(item)
+    })
+    touchRoom(app, room)
+    return
+  }
   if (type === 'transfer-ownership') {
     const targetId = normalizedText(body.userId, 15)
     if (!targetId || targetId === userId) throw new BadRequestError('Escolha outro participante para receber a sala.')
@@ -310,6 +329,7 @@ function applyAction(app, room, userId, body) {
     if (activeEntryId) throw new BadRequestError('Já existe uma fala em andamento.')
     const next = roomQueue(app, room.id).find((entry) => entry.getString('question') === activeQuestionId && entry.getString('status') === 'waiting')
     if (!next) throw new BadRequestError('A fila está vazia. Ela continua aberta para novas inscrições.')
+    next.set('speech_number', Math.max(0, ...roomQueue(app, room.id).filter((entry) => entry.getString('question') === activeQuestionId).map((entry) => entry.getInt('speech_number'))) + 1)
     next.set('status', 'speaking')
     app.save(next)
     touchRoom(app, room, { active_entry_id: next.id, speech_started_at: Date.now() })
@@ -323,6 +343,7 @@ function applyAction(app, room, userId, body) {
     app.save(current)
     const next = roomQueue(app, room.id).find((entry) => entry.getString('question') === activeQuestionId && entry.getString('status') === 'waiting')
     if (next) {
+      next.set('speech_number', Math.max(0, ...roomQueue(app, room.id).filter((entry) => entry.getString('question') === activeQuestionId).map((entry) => entry.getInt('speech_number'))) + 1)
       next.set('status', 'speaking')
       app.save(next)
       touchRoom(app, room, { active_entry_id: next.id, speech_started_at: Date.now() })
