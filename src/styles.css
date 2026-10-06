@@ -270,7 +270,7 @@ blockquote { margin: 25px 0 16px; max-width: 660px; font-size: clamp(24px, 4vw, 
 .duration-toggle button.is-active { color: var(--on-primary); background: var(--primary-button); }
 
 .notice { position: fixed; z-index: 10; right: 24px; bottom: 24px; display: flex; align-items: center; gap: 16px; max-width: min(400px, calc(100% - 48px)); padding: 12px 12px 12px 16px; color: var(--on-primary); background: var(--primary-button); border-radius: 11px; box-shadow: 0 15px 40px rgba(0, 0, 0, .24); font-size: 13px; animation: notice-in .24s ease-out both; }
-.icon-button { width: 27px; height: 27px; padding: 0; color: var(--ink); background: var(--primary-muted); border: 0; border-radius: 7px; font-size: 18px; }
+.icon-button { width: 27px; height: 27px; padding: 0; color: var(--primary-text); background: var(--primary-muted); border: 0; border-radius: 7px; font-size: 18px; }
 .loading-screen { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--muted); font: 11px var(--mono); }
 .loading-fin { display: grid; place-items: center; width: 42px; height: 42px; color: var(--on-primary); background: var(--primary-button); border-radius: 50%; font-size: 21px; animation: float 1.2s ease-in-out infinite; }
 .panel-enter { animation: rise-in .38s ease-out both; }
