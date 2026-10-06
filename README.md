@@ -44,7 +44,7 @@ Não coloque o Client Secret do GitHub no repositório, no frontend ou no `.env`
 
 ## Implantar na VPS
 
-Em produção, `.tevun/environment/bowl.devi.tools/docker-compose.override.yml` conecta o PocketBase à rede `reverse-proxy`, sem publicar portas no host. O Tevun serve a aplicação em `https://bowl.devi.tools` e mantém os dados no volume `sharkbowl_pocketbase_data`.
+Em produção, `.tevun/environment/bowl.devi.tools/docker-compose.override.yml` conecta o PocketBase à rede `reverse-proxy`, sem publicar portas no host. O Tevun serve a aplicação em `https://bowl.phpcomrapadura.dev.br` (mantendo `https://bowl.devi.tools` como endereço alternativo) e mantém os dados no volume `sharkbowl_pocketbase_data`.
 
 ```bash
 cp .tevun/environment/bowl.devi.tools/docker-compose.override.yml docker-compose.override.yml
