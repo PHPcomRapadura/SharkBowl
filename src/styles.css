@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Lexend:wght@400;500;600;700&display=swap');
 
 :root {
-  font-family: 'Outfit', 'Avenir Next', system-ui, sans-serif;
+  font-family: 'Lexend', 'Avenir Next', system-ui, sans-serif;
   color: var(--text);
   background: var(--ink);
   color-scheme: dark;
@@ -17,13 +17,13 @@
   --text: #f2f3f5;
   --muted: #a0a4ad;
   --muted-faint: #70747d;
-  --teal: #6d9cff;
-  --teal-deep: #4f83f1;
+  --teal: #77b9e6;
+  --teal-deep: #56a2d5;
   --coral: #ff7b72;
   --coral-deep: #e35d55;
   --yellow: #e3b341;
-  --accent-muted: rgba(109, 156, 255, .1);
-  --accent-ring: rgba(109, 156, 255, .22);
+  --accent-muted: rgba(119, 185, 230, .1);
+  --accent-ring: rgba(119, 185, 230, .22);
   --danger-muted: rgba(255, 123, 114, .09);
   --danger-ring: rgba(255, 123, 114, .2);
   --warning-muted: rgba(227, 179, 65, .08);
@@ -47,13 +47,13 @@
   --text: #1c1e22;
   --muted: #626771;
   --muted-faint: #8b9099;
-  --teal: #2f6feb;
-  --teal-deep: #1f5fd1;
+  --teal: #025c98;
+  --teal-deep: #034d7d;
   --coral: #d74c45;
   --coral-deep: #bd3732;
   --yellow: #8f6200;
-  --accent-muted: rgba(47, 111, 235, .08);
-  --accent-ring: rgba(47, 111, 235, .18);
+  --accent-muted: rgba(2, 92, 152, .08);
+  --accent-ring: rgba(2, 92, 152, .18);
   --danger-muted: rgba(215, 76, 69, .07);
   --danger-ring: rgba(215, 76, 69, .18);
   --warning-muted: rgba(143, 98, 0, .07);
@@ -80,12 +80,11 @@ a { color: inherit; text-decoration: none; }
 
 .app-shell { min-height: 100vh; }
 .topbar { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 26px 0 20px; display: flex; justify-content: space-between; align-items: center; }
-.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); font-size: 21px; letter-spacing: -.04em; }
-.brand strong { font-weight: 700; }
-.brand em { color: var(--teal); font-style: normal; font-weight: 400; }
-.brand-mark { width: 37px; height: 31px; display: inline-flex; align-items: center; justify-content: center; background: var(--teal); border-radius: 11px 11px 11px 3px; transform: rotate(-5deg); }
-.brand-mark svg { width: 33px; height: 28px; fill: var(--ink); transform: rotate(5deg); }
-.brand-mark .brand-fin { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); letter-spacing: -.03em; flex-shrink: 0; }
+.brand-mark { width: 40px; height: 40px; display: block; }
+.brand-name { display: flex; flex-direction: column; gap: 2px; line-height: 1.15; }
+.brand-name strong { font-size: 21px; font-weight: 700; }
+.brand-name em { color: var(--teal); font-size: 13px; font-style: normal; font-weight: 500; letter-spacing: -.01em; }
 .topbar-actions { display: flex; align-items: center; gap: 20px; }
 .theme-toggle { width: 32px; height: 32px; display: inline-grid; place-items: center; flex: 0 0 auto; padding: 0; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 8px; transition: color .2s, background .2s, border-color .2s; }
 .theme-toggle svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -477,7 +476,7 @@ blockquote { margin: 25px 0 16px; max-width: 660px; font-size: clamp(24px, 4vw, 
 @media (max-width: 640px) { .speech-history-row { align-items: stretch; flex-direction: column; } .queue-row { flex-wrap: wrap; } .prioritize-reply { margin-left: auto; } }
 
 .community-logo { display: inline-flex; flex: 0 0 auto; }
-.community-logo img { display: block; border-radius: 50%; }
+.community-logo img { display: block; width: 128px; height: 48px; object-fit: contain; background: #f5f6f8; border-radius: 8px; padding: 6px; }
 
 .question-vote svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 .question-vote.is-voted svg { fill: currentColor; }

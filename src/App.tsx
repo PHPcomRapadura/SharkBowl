@@ -1,5 +1,6 @@
+import bowlRapaduraLogo from './assets/bowl-rapadura.svg'
 import { QRCodeSVG } from 'qrcode.react'
-import phpComRapaduraLogo from './assets/php-com-rapadura.png'
+import phpComRapaduraLogo from './assets/php-com-rapadura.svg'
 import { createContext, useContext, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import type { Action, AppState, Identity, LobbyState, QueueEntry, Question, Room, RoomSummary } from './types'
 import { buildPublicRoomUrl } from './share-url'
@@ -29,15 +30,9 @@ const getInitials = (name: string) => name.trim().split(/\s+/).map((part) => par
 
 function Brand() {
   return (
-    <a className="brand" href="/" aria-label="Shark Bowl, salas">
-      <span className="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 48 40" role="img">
-          <path d="M4 30c8-9 16-13 25-13 5 0 10 1 15 4-5 0-9 2-12 6 4-1 8-1 12 1-8 7-19 9-31 5L4 30Z" />
-          <path className="brand-fin" d="M23 17 29 4l6 13" />
-          <circle cx="35" cy="22" r="1.6" />
-        </svg>
-      </span>
-      <span><strong>Shark</strong> <em>Bowl</em></span>
+    <a className="brand" href="/" aria-label="Bowl com Rapadura, salas">
+      <img className="brand-mark" src={bowlRapaduraLogo} alt="" width="40" height="40" />
+      <span className="brand-name"><strong>Bowl</strong><em>com Rapadura</em></span>
     </a>
   )
 }
@@ -370,7 +365,7 @@ function ParticipantView({ state, online, identity, publicOrigin, onLogout, onAc
         <section className="pending-questions panel"><div className="section-heading"><div><span className="kicker">escolha da comunidade</span><h2>Perguntas aguardando</h2></div><span>{pendingQuestions.length}</span></div><p className="voting-help">Vote nas perguntas que gostaria de ouvir. O dono decide qual abrir.</p>{pendingQuestions.length ? <div className="question-grid">{pendingQuestions.map((question) => <article className="question-card" key={question.id}><div className="question-card-top"><span className="question-time">{formatRelativeTime(question.createdAt)}</span><span className="question-author">{question.authorName}</span></div><p>{question.text}</p><QuestionVote question={question} onAction={onAction} /></article>)}</div> : <p className="voting-help">Nenhuma pergunta aguardando. Envie a primeira.</p>}</section>
         {myQuestions.length > 0 && <section className="my-questions panel-enter"><div className="section-heading"><div><span className="kicker">seu rastro</span><h2>Perguntas enviadas</h2></div><span>{myQuestions.length}</span></div><div className="my-question-list">{myQuestions.map((question) => <div className="my-question" key={question.id}><span className={`status-dot status-${question.status}`} /><p>{question.text}</p><span className="question-status">{question.status === 'waiting' ? 'na fila' : question.status === 'active' ? 'em pauta' : 'encerrada'}</span></div>)}</div></section>}
       </main>
-      <footer className="site-footer"><span>Shark Bowl para a PHPinda</span><span>{state.room.title}</span></footer>
+      <footer className="site-footer"><span>Bowl com Rapadura · PHP com Rapadura</span><span>{state.room.title}</span></footer>
     </div>
   )
 }
@@ -588,7 +583,7 @@ function App() {
       ? <IdentityGate error={error} onLogin={login} />
       : <AuthenticatedApp identity={identity} onLogout={logout} onUnauthorized={expire} />
 
-  return <ThemeContext.Provider value={{ theme, toggleTheme: () => setTheme((current) => current === 'dark' ? 'light' : 'dark') }}>{content}<footer className="repository-footer"><a className="community-logo" href="https://github.com/PHPcomRapadura" target="_blank" rel="noopener noreferrer"><img src={phpComRapaduraLogo} alt="PHP com Rapadura" width="32" height="32" loading="lazy" /></a><a href="https://github.com/PHPcomRapadura/SharkBowl" target="_blank" rel="noopener noreferrer">Código do SharkBowl no GitHub ↗</a></footer></ThemeContext.Provider>
+  return <ThemeContext.Provider value={{ theme, toggleTheme: () => setTheme((current) => current === 'dark' ? 'light' : 'dark') }}>{content}<footer className="repository-footer"><a className="community-logo" href="https://phpcomrapadura.dev.br/" target="_blank" rel="noopener noreferrer"><img src={phpComRapaduraLogo} alt="PHP com Rapadura" width="128" height="48" loading="lazy" /></a><a href="https://github.com/PHPcomRapadura/SharkBowl" target="_blank" rel="noopener noreferrer">Código no GitHub ↗</a></footer></ThemeContext.Provider>
 }
 
 export default App
