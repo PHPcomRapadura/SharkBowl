@@ -1,4 +1,6 @@
+import bowlRapaduraLogo from './assets/bowl-rapadura.svg'
 import { QRCodeSVG } from 'qrcode.react'
+import phpComRapaduraLogo from './assets/php-com-rapadura.svg'
 import { createContext, useContext, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import type { Action, AppState, Identity, LobbyState, QueueEntry, Question, Room, RoomSummary } from './types'
 import { buildPublicRoomUrl } from './share-url'
@@ -28,15 +30,9 @@ const getInitials = (name: string) => name.trim().split(/\s+/).map((part) => par
 
 function Brand() {
   return (
-    <a className="brand" href="/" aria-label="Shark Bowl, salas">
-      <span className="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 48 40" role="img">
-          <path d="M4 30c8-9 16-13 25-13 5 0 10 1 15 4-5 0-9 2-12 6 4-1 8-1 12 1-8 7-19 9-31 5L4 30Z" />
-          <path className="brand-fin" d="M23 17 29 4l6 13" />
-          <circle cx="35" cy="22" r="1.6" />
-        </svg>
-      </span>
-      <span><strong>Shark</strong> <em>Bowl</em></span>
+    <a className="brand" href="/" aria-label="Bowl com Rapadura, salas">
+      <img className="brand-mark" src={bowlRapaduraLogo} alt="" width="40" height="40" />
+      <span className="brand-name"><strong>Bowl</strong><em>com Rapadura</em></span>
     </a>
   )
 }
@@ -307,42 +303,51 @@ function QuestionComposer({ onSubmit }: { onSubmit: (text: string, anonymous: bo
 }
 
 function ActiveQuestionCard({ question, queue, participantId, onJoin }: { question: Question | undefined; queue: QueueEntry[]; participantId: string; onJoin: (replyToEntryId: string | null) => Promise<void> }) {
-  const [replyMode, setReplyMode] = useState(false)
-  const [replyTo, setReplyTo] = useState('')
   const [joining, setJoining] = useState(false)
-  const availableTargets = queue.filter((entry) => entry.status === 'finished' || entry.status === 'speaking')
-  const alreadyInQueue = queue.some((entry) => entry.participantId === participantId && (entry.status === 'waiting' || entry.status === 'speaking'))
+  const availableTargets = queue.filter((entry) => entry.speechNumber && (entry.status === 'finished' || entry.status === 'speaking')).sort((left, right) => (right.speechNumber || 0) - (left.speechNumber || 0))
+  const ownRequest = queue.find((entry) => entry.participantId === participantId && (entry.status === 'waiting' || entry.status === 'speaking'))
 
-  if (!question) {
-    return <section className="empty-stage panel"><div className="empty-wave" aria-hidden="true"><span /><span /><span /></div><span className="kicker">a próxima onda</span><h2>O facilitador ainda não abriu uma pergunta.</h2><p>Enquanto isso, deixe a sua no tanque. Ela aparece no painel assim que chegar.</p></section>
-  }
+  if (!question) return <section className="empty-stage panel"><div className="empty-wave" aria-hidden="true"><span /><span /><span /></div><span className="kicker">a próxima onda</span><h2>O facilitador ainda não abriu uma pergunta.</h2><p>Enquanto isso, deixe a sua no tanque. Ela aparece no painel assim que chegar.</p></section>
 
-  const join = async () => {
+  const join = async (replyToEntryId: string | null) => {
+    if (joining || ownRequest) return
     setJoining(true)
     try {
-      await onJoin(replyMode ? replyTo || null : null)
-      setReplyMode(false)
-      setReplyTo('')
-    } finally {
+      await onJoin(replyToEntryId)
+    } catch {} finally {
       setJoining(false)
     }
   }
 
-  return (
-    <section className="active-question panel">
-      <div className="active-question-top"><span className="live-label"><span /> pergunta na água</span><span className="queue-count">{queue.filter((entry) => entry.status === 'waiting').length} na fila</span></div>
-      <blockquote>“{question.text}”</blockquote>
-      <div className="question-byline"><span className="avatar avatar-small">{question.anonymous ? '?' : getInitials(question.authorName)}</span><span>Pergunta de <strong>{question.anonymous ? 'Anônimo' : question.authorName}</strong></span></div>
-      <div className="join-area">
-        {alreadyInQueue ? <div className="joined-state"><span className="check-badge">✓</span><div><strong>Você está na fila.</strong><span>Aguarde sua vez; a ordem é igual para todos.</span></div></div> : <><div className="join-row"><button className="button button-primary join-button" type="button" onClick={join} disabled={joining}>{joining ? 'Entrando…' : 'Quero falar'}</button><button className={`button button-quiet ${replyMode ? 'is-selected' : ''}`} type="button" onClick={() => setReplyMode(!replyMode)} aria-pressed={replyMode}>É uma réplica</button></div>{replyMode && <div className="reply-select-wrap panel-enter"><label htmlFor="reply-to">Réplica para</label><select id="reply-to" value={replyTo} onChange={(event) => setReplyTo(event.target.value)}><option value="">Escolha alguém (opcional)</option>{availableTargets.map((entry) => <option value={entry.id} key={entry.id}>{entry.participantName}</option>)}</select><small>Ela entra no fim da fila, com o mesmo tempo.</small></div>}</>}
-      </div>
-    </section>
-  )
+  return <section className="active-question panel">
+    <div className="active-question-top"><span className="live-label"><span /> pergunta na água</span><span className="queue-count">{queue.filter((entry) => entry.status === 'waiting').length} na fila</span></div>
+    <blockquote>“{question.text}”</blockquote>
+    <div className="question-byline"><span className="avatar avatar-small">{question.anonymous ? '?' : getInitials(question.authorName)}</span><span>Pergunta de <strong>{question.authorName}</strong></span></div>
+    <div className="join-area">{ownRequest ? <div className="joined-state"><span className="check-badge">✓</span><div><strong>{ownRequest.status === 'speaking' ? 'Você está com a palavra.' : 'Seu pedido está na fila.'}</strong>{ownRequest.replyToName && <span>Resposta à fala #{ownRequest.replyToSpeechNumber} de {ownRequest.replyToName}.</span>}<span>O dono pode antecipar réplicas para conduzir a conversa.</span></div></div> : <button className="button button-primary join-button" type="button" onClick={() => void join(null)} disabled={joining}>{joining ? 'Registrando…' : 'Quero falar'}</button>}</div>
+    {availableTargets.length > 0 && <div className="speech-history"><h3>Falas desta pergunta</h3><p>Responda a uma intervenção específica. A réplica entra no fim da fila; o dono pode antecipá-la.</p>{availableTargets.map((entry) => <div className="speech-history-row" key={entry.id}><div><strong>{entry.participantName}</strong><span>Fala #{entry.speechNumber} · {entry.status === 'speaking' ? 'com a palavra agora' : 'concluída'}</span></div><button className="button button-quiet" type="button" disabled={joining || Boolean(ownRequest)} onClick={() => void join(entry.id)} aria-label={`Responder à fala ${entry.speechNumber} de ${entry.participantName}`}>Responder a esta fala</button></div>)}</div>}
+  </section>
+}
+
+const compareQuestionVotes = (left: Question, right: Question) => right.voteCount - left.voteCount || left.createdAt - right.createdAt || left.id.localeCompare(right.id)
+
+function QuestionVote({ question, onAction }: { question: Question; onAction: (action: Action) => Promise<void> }) {
+  const [voting, setVoting] = useState(false)
+  const vote = async () => {
+    if (voting) return
+    setVoting(true)
+    try {
+      await onAction({ type: 'set-vote', questionId: question.id, enabled: !question.votedByMe })
+    } finally {
+      setVoting(false)
+    }
+  }
+  return <button className={`question-vote ${question.votedByMe ? 'is-voted' : ''}`} type="button" aria-pressed={question.votedByMe} aria-label={`${question.votedByMe ? 'Remover curtida' : 'Curtir pergunta'}: ${question.text}. ${question.voteCount} curtidas`} disabled={voting} onClick={() => void vote()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" /></svg><strong>{question.voteCount}</strong></button>
 }
 
 function ParticipantView({ state, online, identity, publicOrigin, onLogout, onAction, onMessage }: { state: AppState; online: boolean; identity: Identity; publicOrigin: string | null | undefined; onLogout: () => void; onAction: (action: Action) => Promise<void>; onMessage: (message: string) => void }) {
   const activeQuestion = state.questions.find((question) => question.id === state.session.activeQuestionId)
   const activeQueue = activeQuestion ? state.queue.filter((entry) => entry.questionId === activeQuestion.id) : []
+  const pendingQuestions = state.questions.filter((question) => question.status === 'waiting').sort(compareQuestionVotes)
   const myQuestions = state.questions.filter((question) => !question.anonymous && question.authorName === identity.name).slice(-3).reverse()
 
   const submitQuestion = async (text: string, anonymous: boolean) => {
@@ -354,12 +359,13 @@ function ParticipantView({ state, online, identity, publicOrigin, onLogout, onAc
     <div className="app-shell participant-shell">
       <Header online={online} identity={identity} onLogout={onLogout} room={state.room} publicOrigin={publicOrigin} canFacilitate={state.permissions.canFacilitate} />
       <main className="participant-main">
-        <section className="welcome-row panel-enter"><div><span className="kicker">{state.room.title}</span><h1>Oi, <span>{identity.name}</span>.</h1><p>A sala está aberta. Pergunte, escute, entre na conversa.</p></div><a className="back-to-lobby" href="/">ver todas as salas</a></section>
+        <section className="welcome-row panel-enter"><div><h1 className="room-title">{state.room.title}</h1><p className="room-subtitle">Oi, <span>{identity.name}</span>.</p><p>A sala está aberta. Pergunte, escute, entre na conversa.</p></div><a className="back-to-lobby" href="/">ver todas as salas</a></section>
         <QuestionComposer onSubmit={submitQuestion} />
-        <ActiveQuestionCard question={activeQuestion} queue={activeQueue} participantId={identity.id} onJoin={(replyToEntryId) => onAction({ type: 'join-queue', replyToEntryId })} />
+        <ActiveQuestionCard question={activeQuestion} queue={activeQueue} participantId={identity.id} onJoin={(replyToEntryId) => onAction({ type: 'join-queue', replyToEntryId, isReply: Boolean(replyToEntryId) })} />
+        <section className="pending-questions panel"><div className="section-heading"><div><span className="kicker">escolha da comunidade</span><h2>Perguntas aguardando</h2></div><span>{pendingQuestions.length}</span></div><p className="voting-help">Vote nas perguntas que gostaria de ouvir. O dono decide qual abrir.</p>{pendingQuestions.length ? <div className="question-grid">{pendingQuestions.map((question) => <article className="question-card" key={question.id}><div className="question-card-top"><span className="question-time">{formatRelativeTime(question.createdAt)}</span><span className="question-author">{question.authorName}</span></div><p>{question.text}</p><QuestionVote question={question} onAction={onAction} /></article>)}</div> : <p className="voting-help">Nenhuma pergunta aguardando. Envie a primeira.</p>}</section>
         {myQuestions.length > 0 && <section className="my-questions panel-enter"><div className="section-heading"><div><span className="kicker">seu rastro</span><h2>Perguntas enviadas</h2></div><span>{myQuestions.length}</span></div><div className="my-question-list">{myQuestions.map((question) => <div className="my-question" key={question.id}><span className={`status-dot status-${question.status}`} /><p>{question.text}</p><span className="question-status">{question.status === 'waiting' ? 'na fila' : question.status === 'active' ? 'em pauta' : 'encerrada'}</span></div>)}</div></section>}
       </main>
-      <footer className="site-footer"><span>Shark Bowl para a PHPinda</span><span>{state.room.title}</span></footer>
+      <footer className="site-footer"><span>Bowl com Rapadura · PHP com Rapadura</span><span>{state.room.title}</span></footer>
     </div>
   )
 }
@@ -378,44 +384,37 @@ function Timer({ startedAt, durationSeconds }: { startedAt: number | null; durat
   return <div className={`timer ${overtime > 0 ? 'is-overtime' : ''}`} style={style} aria-label={startedAt ? `Tempo restante ${formatClock(remaining)}` : 'Cronômetro parado'}><span className="timer-ring" aria-hidden="true" /><span className="timer-label">{overtime > 0 ? 'passou' : startedAt ? 'resta' : 'pronto'}</span><strong>{overtime > 0 ? `+${formatClock(overtime)}` : formatClock(remaining)}</strong><small>{durationSeconds / 60} min por fala</small></div>
 }
 
-function QueueRow({ entry, index, active }: { entry: QueueEntry; index: number; active?: boolean }) {
-  return <div className={`queue-row ${active ? 'is-speaking' : ''}`}><span className="queue-index">{String(index + 1).padStart(2, '0')}</span><span className="avatar avatar-small">{getInitials(entry.participantName)}</span><div className="queue-person"><strong>{entry.participantName}</strong>{entry.replyToName && <span>↳ réplica para {entry.replyToName}</span>}</div>{active ? <span className="speaking-pill">falando</span> : <span className={`entry-state state-${entry.status}`}>{entry.status === 'finished' ? 'falou' : 'aguardando'}</span>}</div>
+function QueueRow({ entry, index, active, onPrioritize }: { entry: QueueEntry; index: number; active?: boolean; onPrioritize?: () => void }) {
+  return <div className={`queue-row ${active ? 'is-speaking' : ''}`}><span className="queue-index">{String(index + 1).padStart(2, '0')}</span><span className="avatar avatar-small">{getInitials(entry.participantName)}</span><div className="queue-person"><strong>{entry.participantName}</strong>{entry.replyToName && <span>↳ resposta à fala #{entry.replyToSpeechNumber} de {entry.replyToName}</span>}</div>{onPrioritize && <button className="button button-quiet prioritize-reply" type="button" onClick={onPrioritize}>Colocar como próxima</button>}{active ? <span className="speaking-pill">falando</span> : <span className={`entry-state state-${entry.status}`}>{entry.status === 'finished' ? 'falou' : 'aguardando'}</span>}</div>
 }
 
-function FacilitatorAccess({ state, onAction }: { state: AppState; onAction: (action: Action) => Promise<void> }) {
-  const [busyUserId, setBusyUserId] = useState('')
-  const facilitatorIds = new Set(state.facilitators.map((facilitator) => facilitator.id))
-
-  const setFacilitator = async (userId: string, enabled: boolean) => {
-    setBusyUserId(userId)
+function RoomTransfer({ state, onAction }: { state: AppState; onAction: (action: Action) => Promise<void> }) {
+  const [recipientId, setRecipientId] = useState('')
+  const [transferring, setTransferring] = useState(false)
+  const recipients = state.participants.filter((participant) => participant.id !== state.room.ownerId)
+  const recipient = recipients.find((participant) => participant.id === recipientId)
+  const transfer = async () => {
+    if (!recipient || transferring || !window.confirm(`Transferir “${state.room.title}” para ${recipient.name}? Você perderá imediatamente o controle e continuará como participante. Somente o novo dono poderá transferir a sala de volta.`)) return
+    setTransferring(true)
     try {
-      await onAction({ type: 'set-facilitator', userId, enabled })
-    } finally {
-      setBusyUserId('')
+      await onAction({ type: 'transfer-ownership', userId: recipient.id })
+    } catch {
+      setTransferring(false)
     }
   }
-
-  return (
-    <section className="facilitator-access panel">
-      <div className="facilitator-access-heading"><div><span className="kicker">quem conduz</span><h2>Facilitadores</h2><p>Quem já entrou na sala pode ajudar a conduzir a conversa.</p></div><span>{state.facilitators.length} convidados</span></div>
-      <div className="facilitator-access-list">
-        {state.participants.map((participant) => {
-          const isOwner = participant.id === state.room.ownerId
-          const isFacilitator = isOwner || facilitatorIds.has(participant.id)
-          return <div className="facilitator-access-row" key={participant.id}><span className="avatar avatar-small">{getInitials(participant.name)}</span><strong>{participant.name}</strong>{isOwner ? <span className="access-role">dono</span> : <button className="button button-quiet" type="button" disabled={busyUserId === participant.id} onClick={() => void setFacilitator(participant.id, !isFacilitator)}>{busyUserId === participant.id ? 'Salvando…' : isFacilitator ? 'Remover acesso' : 'Tornar facilitador'}</button>}</div>
-        })}
-      </div>
-    </section>
-  )
+  return <section className="session-reset panel"><div><span className="kicker">trocar quem conduz</span><h2>Transferir sala</h2><p>A sala mantém perguntas, votos e fila. Você perde o controle; a pessoa escolhida será o único dono.</p></div><div className="duration-choice"><label htmlFor="room-recipient">Novo dono</label><select id="room-recipient" value={recipientId} onChange={(event) => setRecipientId(event.target.value)} disabled={transferring}><option value="">Escolha um participante</option>{recipients.map((participant) => <option key={participant.id} value={participant.id}>{participant.name}</option>)}</select>{recipients.length === 0 && <small>Outra pessoa precisa entrar na sala para recebê-la.</small>}<button className="button button-quiet" type="button" disabled={!recipient || transferring} onClick={() => void transfer()}>{transferring ? 'Transferindo…' : 'Transferir sala'}</button></div></section>
 }
 
 function FacilitatorView({ state, online, identity, publicOrigin, onLogout, onAction, onMessage }: { state: AppState; online: boolean; identity: Identity; publicOrigin: string | null | undefined; onLogout: () => void; onAction: (action: Action) => Promise<void>; onMessage: (message: string) => void }) {
+  const [durationMinutes, setDurationMinutes] = useState(String(state.session.durationSeconds / 60))
+  const selectedDuration = Number(durationMinutes) * 60
+  const durationValid = durationMinutes.trim() !== '' && Number.isSafeInteger(selectedDuration) && selectedDuration >= 1 && selectedDuration <= 86400
   const activeQuestion = state.questions.find((question) => question.id === state.session.activeQuestionId)
   const activeEntry = state.queue.find((entry) => entry.id === state.session.activeEntryId)
-  const activeQueue = activeQuestion ? state.queue.filter((entry) => entry.questionId === activeQuestion.id).sort((a, b) => a.createdAt - b.createdAt) : []
-  const waitingQuestions = state.questions.filter((question) => question.status === 'waiting').sort((a, b) => a.createdAt - b.createdAt)
+  const activeQueue = activeQuestion ? state.queue.filter((entry) => entry.questionId === activeQuestion.id).sort((a, b) => a.orderIndex - b.orderIndex || a.id.localeCompare(b.id)) : []
+  const waitingQuestions = state.questions.filter((question) => question.status === 'waiting').sort(compareQuestionVotes)
   const waitingEntries = activeQueue.filter((entry) => entry.status === 'waiting')
-  const completedEntries = activeQueue.filter((entry) => entry.status === 'finished')
+  const completedEntries = activeQueue.filter((entry) => entry.status === 'finished' && entry.speechNumber).sort((a, b) => (a.speechNumber || 0) - (b.speechNumber || 0))
 
   const action = async (nextAction: Action, successMessage?: string) => {
     await onAction(nextAction)
@@ -426,16 +425,17 @@ function FacilitatorView({ state, online, identity, publicOrigin, onLogout, onAc
     <div className="app-shell facilitator-shell">
       <Header online={online} identity={identity} onLogout={onLogout} room={state.room} publicOrigin={publicOrigin} facilitator />
       <main className="facilitator-main">
-        <section className="facilitator-heading panel-enter"><div><span className="kicker">sala de controle · {state.room.title}</span><h1>A conversa está na sua mão.</h1><p>Escolha a pergunta, mantenha o ritmo e deixe a fila respirar.</p></div><div className="facilitator-meta"><span className="room-chip"><span className="room-pulse" /> sala ao vivo</span><span>{state.participants.length} {state.participants.length === 1 ? 'participante' : 'participantes'} na sessão</span></div></section>
+        <section className="facilitator-heading panel-enter"><div><span className="kicker">sala de controle</span><h1 className="room-title">{state.room.title}</h1><p className="room-subtitle">A conversa está na sua mão.</p><p>Escolha a pergunta, mantenha o ritmo e deixe a fila respirar.</p></div><div className="facilitator-meta"><span className="room-chip"><span className="room-pulse" /> sala ao vivo</span><span>{state.participants.length} {state.participants.length === 1 ? 'participante' : 'participantes'} na sessão</span></div></section>
         <section className="share-strip panel"><div className="share-strip-mark" aria-hidden="true"><span /><span /><span /><span /></div><div><span className="kicker">convide para a sala</span><h2>Abra a câmera. Entre na conversa.</h2><p>Mostre o QR no telão ou copie o link público desta sala.</p></div><RoomShare room={state.room} publicOrigin={publicOrigin} prominent /></section>
         <div className="facilitator-grid">
-          <section className="control-stage panel"><div className="stage-header"><span className="kicker">agora</span><span className={`phase-chip phase-${state.session.phase}`}>{state.session.phase === 'running' ? 'em andamento' : 'aguardando'}</span></div>{activeQuestion ? <><div className="active-prompt"><span className="prompt-mark">“</span><p>{activeQuestion.text}</p><div className="question-byline"><span className="avatar avatar-small">{activeQuestion.anonymous ? '?' : getInitials(activeQuestion.authorName)}</span><span>{activeQuestion.anonymous ? 'Anônimo' : activeQuestion.authorName}</span></div></div><div className="stage-live-row"><Timer startedAt={state.session.speechStartedAt} durationSeconds={state.session.durationSeconds} /><div className="speaker-now"><span className="kicker">no microfone</span>{activeEntry ? <><strong>{activeEntry.participantName}</strong>{activeEntry.replyToName && <span>Réplica para {activeEntry.replyToName}</span>}</> : <strong className="muted-text">Ninguém ainda</strong>}</div></div><div className="stage-actions">{activeEntry ? <button className="button button-coral action-button" type="button" onClick={() => action({ type: 'finish-current' }, waitingEntries.length > 0 ? 'Fala passada. Cronômetro reiniciado.' : 'Fala encerrada. A fila continua aberta.')}>Passar para próxima fala <span>↗</span></button> : <button className="button button-primary action-button" type="button" onClick={() => action({ type: 'start-next' })} disabled={waitingEntries.length === 0}>Iniciar próxima fala <span>↗</span></button>}<button className="button button-quiet" type="button" onClick={() => action({ type: 'close-question' }, 'Pergunta encerrada. A sala está pronta para outra.')}>Encerrar pergunta</button></div>{waitingEntries.length === 0 && <div className="open-queue-note"><span>⌁</span><div><strong>Fila aberta</strong><span>Ninguém na fila agora. Novas inscrições não encerram esta pergunta.</span></div></div>}</> : <div className="control-empty"><div className="empty-buoy">◒</div><h2>Escolha uma pergunta para começar.</h2><p>As perguntas que chegam aparecem logo abaixo. A fila só abre depois que você selecionar uma.</p></div>}</section>
-          <section className="queue-panel panel"><div className="queue-panel-header"><div><span className="kicker">ordem da palavra</span><h2>Fila de fala</h2></div><span className="queue-total">{waitingEntries.length} <small>aguardando</small></span></div><div className="queue-list">{activeEntry && <QueueRow entry={activeEntry} index={0} active />}{waitingEntries.map((entry, index) => <QueueRow entry={entry} index={index + (activeEntry ? 1 : 0)} key={entry.id} />)}{!activeEntry && waitingEntries.length === 0 && <div className="queue-empty"><span>⌁</span><p>A fila está tranquila.<br /><small>O próximo mergulho entra pelo celular.</small></p></div>}</div>{completedEntries.length > 0 && <div className="completed-queue"><span className="kicker">já falaram · {completedEntries.length}</span>{completedEntries.slice(-3).map((entry) => <div className="completed-row" key={entry.id}><span className="check-badge">✓</span><span>{entry.participantName}</span>{entry.replyToName && <small>réplica</small>}</div>)}</div>}</section>
+          <section className="control-stage panel"><div className="stage-header"><span className="kicker">agora</span><span className={`phase-chip phase-${state.session.phase}`}>{state.session.phase === 'running' ? 'em andamento' : 'aguardando'}</span></div>{activeQuestion ? <><div className="active-prompt"><span className="prompt-mark">“</span><p>{activeQuestion.text}</p><div className="question-byline"><span className="avatar avatar-small">{activeQuestion.anonymous ? '?' : getInitials(activeQuestion.authorName)}</span><span>{activeQuestion.anonymous ? 'Anônimo' : activeQuestion.authorName}</span></div></div><div className="stage-live-row"><Timer startedAt={state.session.speechStartedAt} durationSeconds={state.session.durationSeconds} /><div className="speaker-now"><span className="kicker">no microfone</span>{activeEntry ? <><strong>{activeEntry.participantName}</strong>{activeEntry.replyToName && <span>Resposta à fala #{activeEntry.replyToSpeechNumber} de {activeEntry.replyToName}</span>}</> : <strong className="muted-text">Ninguém ainda</strong>}</div></div><div className="stage-actions">{activeEntry ? <button className="button button-coral action-button" type="button" onClick={() => action({ type: 'finish-current' }, waitingEntries.length > 0 ? 'Fala passada. Cronômetro reiniciado.' : 'Fala encerrada. A fila continua aberta.')}>Passar para próxima fala <span>↗</span></button> : <button className="button button-primary action-button" type="button" onClick={() => action({ type: 'start-next' })} disabled={waitingEntries.length === 0}>Iniciar próxima fala <span>↗</span></button>}<button className="button button-quiet" type="button" onClick={() => action({ type: 'close-question' }, 'Pergunta encerrada. A sala está pronta para outra.')}>Encerrar pergunta</button></div>{waitingEntries.length === 0 && <div className="open-queue-note"><span>⌁</span><div><strong>Fila aberta</strong><span>Ninguém na fila agora. Novas inscrições não encerram esta pergunta.</span></div></div>}</> : <div className="control-empty"><div className="empty-buoy">◒</div><h2>Escolha uma pergunta para começar.</h2><p>As perguntas que chegam aparecem logo abaixo. A fila só abre depois que você selecionar uma.</p></div>}</section>
+          <section className="queue-panel panel"><div className="queue-panel-header"><div><span className="kicker">ordem da palavra</span><h2>Fila de fala</h2></div><span className="queue-total">{waitingEntries.length} <small>aguardando</small></span></div><div className="queue-list">{activeEntry && <QueueRow entry={activeEntry} index={0} active />}{waitingEntries.map((entry, index) => <QueueRow entry={entry} index={index + (activeEntry ? 1 : 0)} key={entry.id} onPrioritize={entry.replyToEntryId && index > 0 ? () => void action({ type: 'prioritize-reply', entryId: entry.id }, 'Réplica definida como próxima fala.') : undefined} />)}{!activeEntry && waitingEntries.length === 0 && <div className="queue-empty"><span>⌁</span><p>A fila está tranquila.<br /><small>O próximo mergulho entra pelo celular.</small></p></div>}</div>{completedEntries.length > 0 && <div className="completed-queue"><span className="kicker">já falaram · {completedEntries.length}</span>{completedEntries.slice(-3).map((entry) => <div className="completed-row" key={entry.id}><span className="check-badge">✓</span><span>Fala #{entry.speechNumber} · {entry.participantName}</span>{entry.replyToName && <small>resposta à fala #{entry.replyToSpeechNumber}</small>}</div>)}</div>}</section>
         </div>
-        <section className="question-inbox panel"><div className="inbox-header"><div><span className="kicker">o tanque</span><h2>Perguntas recebidas</h2></div><span className="inbox-count">{waitingQuestions.length} novas</span></div>{waitingQuestions.length === 0 ? <div className="inbox-empty"><span>◌</span><div><strong>Nenhuma pergunta aguardando.</strong><p>Quando alguém enviar, ela aparece aqui para você escolher a próxima onda.</p></div></div> : <div className="question-grid">{waitingQuestions.map((question) => <article className="question-card" key={question.id}><div className="question-card-top"><span className="question-time">{formatRelativeTime(question.createdAt)}</span><span className="question-author"><span className="avatar avatar-tiny">{question.anonymous ? '?' : getInitials(question.authorName)}</span>{question.anonymous ? 'Anônimo' : question.authorName}</span></div><p>{question.text}</p><button className="button button-primary button-full" type="button" onClick={() => action({ type: 'select-question', questionId: question.id }, 'Pergunta aberta. A fila está liberada.')}>Abrir esta pergunta</button></article>)}</div>}</section>
-        <section className="facilitator-settings panel"><div><span className="kicker">ritmo da sala</span><h2>Tempo por fala</h2><p>O cronômetro é um guia visual; a passagem é sempre manual.</p></div><div className="duration-toggle" role="group" aria-label="Tempo por fala">{[120, 180].map((duration) => <button type="button" key={duration} className={state.session.durationSeconds === duration ? 'is-active' : ''} onClick={() => action({ type: 'set-duration', durationSeconds: duration as 120 | 180 })}>{duration / 60} min</button>)}</div></section>
-        {state.permissions.canManageFacilitators && <FacilitatorAccess state={state} onAction={onAction} />}
-        {state.permissions.canManageFacilitators && <section className="session-reset panel"><div><span className="kicker">recomeçar</span><h2>Limpar a conversa</h2><p>Apaga perguntas e falas, mas mantém a sala e os facilitadores.</p></div><button className="button button-quiet" type="button" onClick={() => void action({ type: 'reset-session' }, 'A conversa foi reiniciada.')}>Reiniciar sessão</button></section>}
+        <section className="facilitator-settings panel"><div><span className="kicker">próxima pergunta</span><h2>Tempo por fala</h2><p>Aplicado ao abrir uma pergunta. A passagem de fala continua manual.</p></div><div className="duration-choice"><div className="duration-toggle" role="group" aria-label="Tempos sugeridos">{[2, 3, 5].map((minutes) => <button type="button" key={minutes} aria-pressed={Number(durationMinutes) === minutes} className={Number(durationMinutes) === minutes ? 'is-active' : ''} onClick={() => setDurationMinutes(String(minutes))}>{minutes} min</button>)}</div><label htmlFor="speech-minutes">Personalizado (minutos)</label><input id="speech-minutes" type="number" inputMode="decimal" min={1 / 60} max="1440" step="any" value={durationMinutes} onChange={(event) => setDurationMinutes(event.target.value)} aria-invalid={!durationValid} aria-describedby="speech-duration-help" /><small id="speech-duration-help">{durationValid ? 'De 1 segundo a 1440 minutos; aceita frações em segundos inteiros.' : 'Informe um tempo positivo de até 1440 minutos, equivalente a segundos inteiros.'}</small>{activeEntry && <p>Finalize a fala atual antes de abrir outra pergunta.</p>}</div></section>
+        <section className="question-inbox panel"><div className="inbox-header"><div><span className="kicker">o tanque</span><h2>Perguntas recebidas</h2></div><span className="inbox-count">{waitingQuestions.length} novas</span></div>{waitingQuestions.length === 0 ? <div className="inbox-empty"><span>◌</span><div><strong>Nenhuma pergunta aguardando.</strong><p>Quando alguém enviar, ela aparece aqui para você escolher a próxima onda.</p></div></div> : <div className="question-grid">{waitingQuestions.map((question) => <article className="question-card" key={question.id}><div className="question-card-top"><span className="question-time">{formatRelativeTime(question.createdAt)}</span><span className="question-author"><span className="avatar avatar-tiny">{question.anonymous ? '?' : getInitials(question.authorName)}</span>{question.anonymous ? 'Anônimo' : question.authorName}</span></div><p>{question.text}</p><QuestionVote question={question} onAction={onAction} /><button className="button button-primary button-full" type="button" onClick={() => action({ type: 'select-question', questionId: question.id, durationSeconds: selectedDuration }, 'Pergunta aberta. A fila está liberada.')} disabled={!durationValid || Boolean(activeEntry)}>Abrir esta pergunta</button></article>)}</div>}</section>
+
+        {state.permissions.canFacilitate && <RoomTransfer state={state} onAction={onAction} />}
+        {state.permissions.canFacilitate && <section className="session-reset panel"><div><span className="kicker">recomeçar</span><h2>Limpar a conversa</h2><p>Apaga perguntas e falas, mas mantém a sala e seus participantes.</p></div><button className="button button-quiet" type="button" onClick={() => void action({ type: 'reset-session' }, 'A conversa foi reiniciada.')}>Reiniciar sessão</button></section>}
       </main>
     </div>
   )
@@ -450,6 +450,7 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
   useEffect(() => {
     let cancelled = false
     let unsubscribe: (() => Promise<void>) | undefined
+    let unsubscribeConnect: (() => Promise<void>) | undefined
     let roomRecordId = ''
     const load = async (join = false) => {
       try {
@@ -457,11 +458,11 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
         if (join) {
           const joinedState = await requestJson<AppState>(`/rooms/${encodeURIComponent(roomId)}/join`, { method: 'POST' })
           roomRecordId = joinedState.room.id
-          if (!cancelled) setState(joinedState)
+          if (!cancelled) setState((current) => !current || joinedState.session.revision >= current.session.revision ? joinedState : current)
           return joinedState
         }
         roomRecordId = nextState.room.id
-        if (!cancelled) setState(nextState)
+        if (!cancelled) setState((current) => !current || nextState.session.revision >= current.session.revision ? nextState : current)
         return nextState
       } catch (error) {
         if (!cancelled && error instanceof ApiError && error.status === 401) onUnauthorized()
@@ -476,7 +477,9 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
       if (cancelled || !initial || !roomRecordId) return
       try {
         unsubscribe = await pocketbase.collection('rooms').subscribe(roomRecordId, () => { void load() })
-        if (cancelled) await unsubscribe()
+        unsubscribeConnect = await pocketbase.realtime.subscribe('PB_CONNECT', () => { if (!cancelled) void load() })
+        if (!cancelled) await load()
+        if (cancelled) { await unsubscribe(); await unsubscribeConnect() }
         else setOnline(true)
       } catch {
         if (!cancelled) setOnline(false)
@@ -486,15 +489,20 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
     return () => {
       cancelled = true
       void unsubscribe?.()
+      void unsubscribeConnect?.()
     }
   }, [onUnauthorized, roomId])
 
   const onAction = async (action: Action) => {
     try {
-      const nextState = await requestJson<AppState>(`/rooms/${encodeURIComponent(roomId)}/actions`, { method: 'POST', body: action })
-      setState(nextState)
+      const nextState = await requestJson<AppState>(`/rooms/${encodeURIComponent(roomId)}/actions`, { method: 'POST', body: { ...action, expectedControlVersion: state?.session.controlVersion } })
+      setState((current) => !current || nextState.session.revision >= current.session.revision ? nextState : current)
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) onUnauthorized()
+      if (error instanceof ApiError && error.status === 409) {
+        const refreshed = await requestJson<AppState>(`/rooms/${encodeURIComponent(roomId)}/state`)
+        setState((current) => !current || refreshed.session.revision >= current.session.revision ? refreshed : current)
+      }
       const nextMessage = error instanceof Error ? error.message : 'Não foi possível atualizar a sala.'
       setMessage(nextMessage)
       throw error
@@ -503,7 +511,7 @@ function RoomView({ roomId, facilitator, identity, onLogout, onUnauthorized }: {
 
   if (missing) return <div className="not-found"><Brand /><span className="empty-fin">◒</span><h1>Essa sala saiu do radar.</h1><p>Confira o link ou volte para o lobby.</p><a className="button button-primary" href="/">Ver salas abertas</a></div>
   if (!state) return <div className="loading-screen"><span className="loading-fin">◒</span><p>abrindo a sala…</p></div>
-  if (facilitator && !state.permissions.canFacilitate) return <div className="not-found"><Brand /><span className="empty-fin">◒</span><h1>Essa sala está em boas mãos.</h1><p>Somente o dono ou facilitadores indicados podem abrir o painel de controle.</p><a className="button button-primary" href={roomPath(state.room.slug)}>Participar da sala</a></div>
+  if (facilitator && !state.permissions.canFacilitate) return <div className="not-found"><Brand /><span className="empty-fin">◒</span><h1>Essa sala está em boas mãos.</h1><p>Somente o dono da sala pode abrir o painel de controle.</p><a className="button button-primary" href={roomPath(state.room.slug)}>Participar da sala</a></div>
   return <>{facilitator ? <FacilitatorView state={state} online={online} identity={identity} publicOrigin={publicAppOrigin} onLogout={onLogout} onAction={onAction} onMessage={setMessage} /> : <ParticipantView state={state} online={online} identity={identity} publicOrigin={publicAppOrigin} onLogout={onLogout} onAction={onAction} onMessage={setMessage} />}{message && <Notice message={message} onDismiss={() => setMessage('')} />}</>
 }
 
@@ -575,7 +583,7 @@ function App() {
       ? <IdentityGate error={error} onLogin={login} />
       : <AuthenticatedApp identity={identity} onLogout={logout} onUnauthorized={expire} />
 
-  return <ThemeContext.Provider value={{ theme, toggleTheme: () => setTheme((current) => current === 'dark' ? 'light' : 'dark') }}>{content}</ThemeContext.Provider>
+  return <ThemeContext.Provider value={{ theme, toggleTheme: () => setTheme((current) => current === 'dark' ? 'light' : 'dark') }}>{content}<footer className="repository-footer"><a className="community-logo" href="https://phpcomrapadura.dev.br/" target="_blank" rel="noopener noreferrer"><img src={phpComRapaduraLogo} alt="PHP com Rapadura" width="128" height="48" loading="lazy" /></a><a href="https://github.com/PHPcomRapadura/SharkBowl" target="_blank" rel="noopener noreferrer">Código no GitHub ↗</a></footer></ThemeContext.Provider>
 }
 
 export default App

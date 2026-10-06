@@ -52,4 +52,4 @@ routerAdd('POST', '/api/shark-bowl/rooms/{slug}/actions', (e) => {
   return e.json(200, state)
 }, $apis.requireAuth('users'))
 
-routerAdd('GET', '/{path...}', $apis.static('/pb/pb_public', true))
+routerAdd('GET', '/{path...}', $apis.static('/pb/public', true))

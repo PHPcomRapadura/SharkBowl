@@ -40,6 +40,8 @@ export type Question = {
   anonymous: boolean
   createdAt: number
   status: QuestionStatus
+  voteCount: number
+  votedByMe: boolean
 }
 
 export type QueueEntry = {
@@ -51,6 +53,9 @@ export type QueueEntry = {
   status: EntryStatus
   replyToEntryId: string | null
   replyToName: string | null
+  replyToSpeechNumber: number | null
+  speechNumber: number | null
+  orderIndex: number
 }
 
 export type Session = {
@@ -60,12 +65,13 @@ export type Session = {
   activeEntryId: string | null
   speechStartedAt: number | null
   durationSeconds: number
+  revision: number
+  controlVersion: number
   updatedAt: number
 }
 
 export type RoomPermissions = {
   canFacilitate: boolean
-  canManageFacilitators: boolean
 }
 
 export type AppState = {
@@ -74,18 +80,19 @@ export type AppState = {
   questions: Question[]
   queue: QueueEntry[]
   participants: Participant[]
-  facilitators: Identity[]
   permissions: RoomPermissions
 }
 
 export type Action =
   | { type: 'join-room' }
+  | { type: 'set-vote'; questionId: string; enabled: boolean }
   | { type: 'submit-question'; text: string; anonymous: boolean }
-  | { type: 'join-queue'; replyToEntryId?: string | null }
-  | { type: 'select-question'; questionId: string }
+  | { type: 'join-queue'; replyToEntryId?: string | null; isReply?: boolean }
+  | { type: 'select-question'; questionId: string; durationSeconds: number }
   | { type: 'start-next' }
   | { type: 'finish-current' }
-  | { type: 'set-duration'; durationSeconds: 120 | 180 }
+  | { type: 'set-duration'; durationSeconds: number }
   | { type: 'close-question' }
   | { type: 'reset-session' }
-  | { type: 'set-facilitator'; userId: string; enabled: boolean }
+  | { type: 'transfer-ownership'; userId: string }
+  | { type: 'prioritize-reply'; entryId: string }

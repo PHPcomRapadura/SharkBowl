@@ -1,0 +1,69 @@
+name: Build and deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/*.test.cjs
+      - run: npm run build
+        env:
+          VITE_PUBLIC_APP_URL: https://bowl.phpcomrapadura.dev.br
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: dist/client
+          if-no-files-found: error
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: sharkbowl-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend
+          path: dist/client
+      - name: Configure SSH
+        env:
+          DEPLOY_SERVER_PRIVATE_KEY: ${{ secrets.DEPLOY_SERVER_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          test -n "$DEPLOY_SERVER_PRIVATE_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SERVER_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Push deployment snapshot
+        env:
+          DEPLOY_REMOTE: ${{ vars.DEPLOY_REMOTE }}
+        run: |
+          test -n "$DEPLOY_REMOTE"
+          cp .tevun/environment/bowl.devi.tools/docker-compose.override.yml docker-compose.override.yml
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add -f dist/client
+          git add docker-compose.override.yml
+          git commit -m "build: Prepare production snapshot"
+          git push --force "$DEPLOY_REMOTE" HEAD:main
