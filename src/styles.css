@@ -468,7 +468,7 @@ blockquote { margin: 25px 0 16px; max-width: 660px; font-size: clamp(24px, 4vw, 
 
 .pending-questions { margin-top: 24px; padding: 24px; }
 .voting-help { margin: 12px 0 20px; color: var(--muted); font-size: 14px; }
-.question-vote { align-self: flex-start; width: fit-content; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 12px 0; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--text); background: transparent; cursor: pointer; font: inherit; }
+.question-vote { align-self: flex-start; width: fit-content; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 12px 0 0; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--text); background: transparent; cursor: pointer; font: inherit; }
 .question-vote.is-voted { color: var(--primary-text); background: var(--primary-muted); border-color: var(--primary-text); }
 .question-vote:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .question-vote:disabled { opacity: .6; cursor: wait; }
